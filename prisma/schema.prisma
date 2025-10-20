@@ -1,0 +1,182 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+/**
+ * =========================
+ * Core Models
+ * =========================
+ */
+
+model User {
+  id          String  @id @default(cuid())
+  email       String  @unique
+  name        String?
+  companyName String?
+  companyAddr String?
+  taxId       String?
+  taxRate     Float?
+  currency    String  @default("CAD")
+  logoUrl     String?
+
+  clients     Client[]
+  projects    Project[]
+  timeEntries TimeEntry[]
+  invoices    Invoice[]
+
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  name     String
+  email    String?
+  phone    String?
+  company  String?
+  currency String?
+  notes    String?
+
+  projects Project[]
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  isArchived Boolean  @default(false)
+}
+
+model Project {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  name        String
+  billingType BillingType   @default(HOURLY)
+  hourlyRate  Float?
+  fixedFee    Float?
+  status      ProjectStatus @default(ACTIVE)
+
+  timeEntries TimeEntry[]
+  invoices    Invoice[] // ← back-rel to Invoice.project
+
+  createdAt DateTime @default(now())
+  isArchived Boolean  @default(false)
+}
+
+model TimeEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  description String?
+  start       DateTime
+  end         DateTime?
+  durationMin Int?
+  billed      Boolean   @default(false)
+
+  // Link to the invoice it was billed on (optional)
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+/**
+ * =========================
+ * Enums
+ * =========================
+ */
+
+enum BillingType {
+  HOURLY
+  FIXED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  CANCELLED
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_FREELANCER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  VOID
+  PARTIAL
+}
+
+/**
+ * =========================
+ * Invoicing
+ * =========================
+ */
+
+model Invoice {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  // NEW: optional link to a single project
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  number    Int // sequential per user (assigned in code)
+  issueDate DateTime
+  dueDate   DateTime
+  currency  String   @default("USD")
+
+  subtotal   Float
+  tax        Float
+  total      Float
+  amountPaid Float @default(0) // default to 0
+
+  status InvoiceStatus @default(DRAFT)
+
+  items       InvoiceItem[]
+  timeEntries TimeEntry[] // linked time entries (hourly)
+  payments    Payment[]
+
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  description String
+  quantity    Int    @default(1)
+  unitPrice   Float
+  total       Float
+}
+
+model Payment {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  amount Float
+  method String? // e.g., "ACH", "Card", "Cash"
+  note   String?
+  paidAt DateTime @default(now())
+}
