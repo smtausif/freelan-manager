@@ -66,6 +66,7 @@ model Project {
   fixedFee    Float?
   status      ProjectStatus @default(ACTIVE)
 
+  handedOverAt DateTime? 
   timeEntries TimeEntry[]
   invoices    Invoice[] // ← back-rel to Invoice.project
 
@@ -111,6 +112,8 @@ enum ProjectStatus {
   CANCELLED
   CANCELLED_BY_CLIENT
   CANCELLED_BY_FREELANCER
+  HANDED_OVER
+  COMPLETED  
 }
 
 enum InvoiceStatus {

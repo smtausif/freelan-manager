@@ -3,14 +3,23 @@
 import { useEffect, useState } from "react";
 
 type Client = { id: string; name: string };
+
 type Project = {
   id: string;
   name: string;
   billingType: "HOURLY" | "FIXED";
   hourlyRate?: number | null;
   fixedFee?: number | null;
-  status: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "CANCELLED" | "CANCELLED_BY_CLIENT" | "CANCELLED_BY_FREELANCER";
+  status:
+    | "ACTIVE"
+    | "ON_HOLD"
+    | "COMPLETED"
+    | "HANDED_OVER"
+    | "CANCELLED"
+    | "CANCELLED_BY_CLIENT"
+    | "CANCELLED_BY_FREELANCER";
   isArchived?: boolean;
+  handedOverAt?: string | null;
   client: { id: string; name: string };
 };
 
@@ -89,12 +98,33 @@ export default function ProjectsPage() {
     await load();
   }
 
+  async function setStatus(
+    id: string,
+    status: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "HANDED_OVER"
+  ) {
+    const nice = status.replaceAll("_", " ");
+    if (!confirm(`Set status to "${nice}"?`)) return;
+
+    const res = await fetch(`/api/projects/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      alert(txt);
+      return;
+    }
+    await load();
+  }
+
   function statusChip(s: Project["status"], archived?: boolean) {
     const base = "text-xs px-2 py-1 rounded border";
     const map: Record<string, string> = {
       ACTIVE: "bg-green-50 text-green-700 border-green-200",
       ON_HOLD: "bg-amber-50 text-amber-700 border-amber-200",
       COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
+      HANDED_OVER: "bg-purple-50 text-purple-700 border-purple-200",
       CANCELLED: "bg-gray-100 text-gray-700 border-gray-200",
       CANCELLED_BY_CLIENT: "bg-red-50 text-red-700 border-red-200",
       CANCELLED_BY_FREELANCER: "bg-zinc-100 text-zinc-700 border-zinc-200",
@@ -190,7 +220,40 @@ export default function ProjectsPage() {
               <div className="mt-2">{statusChip(p.status, p.isArchived)}</div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {/* Status controls — ALWAYS enabled so you can fix mistakes */}
+              <button
+                onClick={() => setStatus(p.id, "COMPLETED")}
+                className="px-3 py-1.5 rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+                title="Mark project as completed"
+              >
+                Complete
+              </button>
+
+              <button
+                onClick={() => setStatus(p.id, "HANDED_OVER")}
+                className="px-3 py-1.5 rounded border border-purple-300 text-purple-700 hover:bg-purple-50"
+                title="Mark as handed over to client"
+              >
+                Handed Over
+              </button>
+
+              <button
+                onClick={() => setStatus(p.id, "ON_HOLD")}
+                className="px-3 py-1.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-50"
+                title="Put project on hold"
+              >
+                On Hold
+              </button>
+
+              <button
+                onClick={() => setStatus(p.id, "ACTIVE")}
+                className="px-3 py-1.5 rounded border border-green-300 text-green-700 hover:bg-green-50"
+                title="Make project active again"
+              >
+                Activate
+              </button>
+
               {/* Cancel by YOU (void unpaid invoices) */}
               <button
                 onClick={() => cancel(p.id, "freelancer")}
@@ -199,7 +262,8 @@ export default function ProjectsPage() {
               >
                 Cancel (Me)
               </button>
-              {/* Cancel by CLIENT (keep invoices to get paid) */}
+
+              {/* Cancel by CLIENT (keep invoices) */}
               <button
                 onClick={() => cancel(p.id, "client")}
                 className="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50"
@@ -208,7 +272,7 @@ export default function ProjectsPage() {
                 Cancel (Client)
               </button>
 
-              {/* Delete (will fail if invoices still linked) */}
+              {/* Delete */}
               <button
                 onClick={() => remove(p.id)}
                 className="px-3 py-1.5 rounded border border-red-300 text-red-600 hover:bg-red-50"

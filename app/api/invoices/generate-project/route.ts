@@ -1,11 +1,10 @@
 // app/api/invoices/generate-project/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/db";
+import { ensureDevUser } from "@/lib/ensureUser";
 
 async function getUser() {
-  const u = await prisma.user.findFirst({ where: { email: "demo@fcc.app" } });
-  if (!u) throw new Error("Demo user not found");
-  return u;
+  return ensureDevUser();
 }
 
 // Body: { projectId: string, start?: string, end?: string }
