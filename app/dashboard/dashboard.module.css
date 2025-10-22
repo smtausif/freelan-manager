@@ -1,0 +1,34 @@
+/* app/dashboard/dashboard.module.css */
+.dashBtn {
+  /* wipe out any global button styles */
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  /* your chip look */
+  background: transparent;
+  color: var(--text);
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  padding: 6px 10px;           /* smaller than your global button */
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;              /* avoids tall buttons */
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.dashBtn:hover {
+  background: #111214;
+}
+
+.dashBtnActive {
+  background: var(--accent);
+  color: #f2f2f2;              
+  border-color: #2563eb;
+}
+
+.dashBtnActive:hover {
+  background: #2563eb;
+}
