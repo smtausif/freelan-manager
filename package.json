@@ -7,13 +7,18 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "db:reset": "prisma db push --force-reset && prisma db seed",
+    "db:seed": "prisma db seed",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.17.1",
     "next": "15.5.5",
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.17.2",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "resend": "^6.2.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -27,5 +32,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

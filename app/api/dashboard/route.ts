@@ -20,6 +20,10 @@ export async function GET() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+
+
     const [invoices, clients, projects, timeEntries, projectsExpanded] = await Promise.all([
       prisma.invoice.findMany({
         where: { userId },
@@ -65,6 +69,10 @@ export async function GET() {
 
     const thisMonthBilledTotal = invoices
       .filter((inv) => inv.issueDate >= monthStart && inv.issueDate < nextMonthStart)
+      .reduce((s, inv) => s + Number(inv.total ?? 0), 0);
+
+    const lastMonthBilledTotal = invoices
+      .filter((inv) => inv.issueDate >= lastMonthStart && inv.issueDate < lastMonthEnd)
       .reduce((s, inv) => s + Number(inv.total ?? 0), 0);
 
     const minutesThisMonth = timeEntries.reduce((m, t) => {
@@ -121,9 +129,10 @@ export async function GET() {
       unpaidTotal: +unpaidTotal.toFixed(2),
       overdueCount,
       thisMonthBilledTotal: +thisMonthBilledTotal.toFixed(2),
+      lastMonthBilledTotal: +lastMonthBilledTotal.toFixed(2), 
       hoursTrackedThisMonth,
       clients: clientSummaries,
-      projects: projectList, // ← NEW
+      projects: projectList,
     });
   } catch (e) {
     console.error("GET /api/dashboard error:", e);

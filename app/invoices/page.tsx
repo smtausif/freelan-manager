@@ -1,4 +1,6 @@
+// app/invoices/page.tsx
 "use client";
+
 import { useEffect, useState } from "react";
 
 type Client = { id: string; name: string };
@@ -31,32 +33,48 @@ export default function InvoicesPage() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
 
+  // UI niceties
+  const [exporting, setExporting] = useState(false);
+
   async function loadInvoices() {
     const url = filter === "ALL" ? "/api/invoices" : `/api/invoices?status=${filter}`;
     const res = await fetch(url);
+    if (!res.ok) {
+      console.error("Failed to load invoices");
+      setInvoices([]);
+      return;
+    }
     setInvoices(await res.json());
   }
 
   useEffect(() => {
-    fetch("/api/clients").then(r => r.json()).then(setClients);
+    fetch("/api/clients").then((r) => r.json()).then(setClients);
   }, []);
 
-  useEffect(() => { loadInvoices(); }, [filter]);
+  useEffect(() => {
+    loadInvoices();
+  }, [filter]);
 
   // when client changes, show only their projects
   useEffect(() => {
     setProjectId("");
-    if (!clientId) { setProjects([]); return; }
+    if (!clientId) {
+      setProjects([]);
+      return;
+    }
     fetch("/api/projects")
-      .then(r => r.json())
+      .then((r) => r.json())
       .then((all) => setProjects(all.filter((p: Project) => p.clientId === clientId)));
   }, [clientId]);
 
   async function generateInvoice(e: React.FormEvent) {
     e.preventDefault();
-    if (!clientId) { alert("Pick a client"); return; }
+    if (!clientId) {
+      alert("Pick a client");
+      return;
+    }
 
-    const dateBits: any = {};
+    const dateBits: Record<string, string> = {};
     if (start) dateBits.start = new Date(start).toISOString();
     if (end) dateBits.end = new Date(end).toISOString();
 
@@ -76,9 +94,16 @@ export default function InvoicesPage() {
         body: JSON.stringify({ clientId, ...dateBits }),
       });
     }
-    if (!r.ok) { alert(await r.text()); return; }
 
-    setClientId(""); setProjectId(""); setStart(""); setEnd("");
+    if (!r.ok) {
+      alert(await r.text());
+      return;
+    }
+
+    setClientId("");
+    setProjectId("");
+    setStart("");
+    setEnd("");
     await loadInvoices();
   }
 
@@ -92,10 +117,58 @@ export default function InvoicesPage() {
       PARTIAL: "bg-amber-600/20 text-amber-300 border border-amber-600/30",
     };
     return <span className={`text-xs px-2 py-1 rounded ${map[s]}`}>{s}</span>;
+    // feel free to titlecase s if you want it prettier
   };
 
   function dollars(n: number) {
     return `$${n.toFixed(2)}`;
+  }
+
+  // Download CSV for the current section/filter
+  async function downloadCsv() {
+    try {
+      setExporting(true);
+      const url =
+        filter === "ALL"
+          ? "/api/invoices/export"
+          : `/api/invoices/export?status=${encodeURIComponent(filter)}`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        alert("Failed to export CSV");
+        return;
+      }
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `invoices_${filter}_${today}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // Download PDF for a specific invoice
+  async function downloadPdfFor(invId: string, invNumber: number) {
+    const res = await fetch(`/api/invoices/${invId}/pdf`);
+    if (!res.ok) {
+      alert("Failed to generate PDF");
+      return;
+    }
+    const blob = await res.blob();
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = `invoice_${invNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(href);
   }
 
   return (
@@ -112,7 +185,11 @@ export default function InvoicesPage() {
             onChange={(e) => setClientId(e.target.value)}
           >
             <option value="">Select client…</option>
-            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
 
           <select
@@ -122,7 +199,11 @@ export default function InvoicesPage() {
             disabled={!clientId}
           >
             <option value="">All projects for this client</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
           </select>
 
           <input
@@ -148,10 +229,10 @@ export default function InvoicesPage() {
         </p>
       </form>
 
-      {/* Filter */}
+      {/* Filter + CSV */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-400">Filter:</span>
-        {(["ALL","DRAFT","SENT","PAID","OVERDUE","VOID","PARTIAL"] as const).map((s) => (
+        {(["ALL", "DRAFT", "SENT", "PAID", "OVERDUE", "VOID", "PARTIAL"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s as any)}
@@ -162,6 +243,19 @@ export default function InvoicesPage() {
             {s}
           </button>
         ))}
+
+        <div className="flex-1" />
+        <button
+          onClick={downloadCsv}
+          disabled={exporting || invoices.length === 0}
+          className={`px-3 py-1.5 rounded border border-[#3f3f46] ${
+            exporting || invoices.length === 0 ? "opacity-50 cursor-not-allowed" : "hover:bg-[#2a2b30]"
+          }`}
+          title={invoices.length === 0 ? "No invoices to export" : "Download CSV for this section"}
+          aria-busy={exporting}
+        >
+          {exporting ? "Preparing..." : "Download CSV"}
+        </button>
       </div>
 
       {/* List */}
@@ -186,7 +280,7 @@ export default function InvoicesPage() {
                   {new Date(inv.dueDate).toLocaleDateString()}
                 </div>
                 <ul className="mt-2 text-sm text-gray-300 list-disc pl-5">
-                  {inv.items.slice(0, 3).map(it => (
+                  {inv.items.slice(0, 3).map((it) => (
                     <li key={it.id}>
                       {it.description} — {it.quantity} × ${it.unitPrice} = ${it.total}
                     </li>
@@ -194,23 +288,33 @@ export default function InvoicesPage() {
                   {inv.items.length > 3 && <li>…and {inv.items.length - 3} more items</li>}
                 </ul>
 
-                <button
-                  onClick={async () => {
-                    const v = prompt("Payment amount (e.g., 500):");
-                    const amt = v ? Number(v) : 0;
-                    if (!amt || amt <= 0) return;
-                    const r = await fetch(`/api/invoices/${inv.id}/pay`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ amount: amt, method: "Manual" }),
-                    });
-                    if (r.ok) loadInvoices();
-                    else alert(await r.text());
-                  }}
-                  className="mt-3 px-3 py-1.5 rounded border border-[#3f3f46] hover:bg-[#2a2b30]"
-                >
-                  Record Payment
-                </button>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={async () => {
+                      const v = prompt("Payment amount (e.g., 500):");
+                      const amt = v ? Number(v) : 0;
+                      if (!amt || amt <= 0) return;
+                      const r = await fetch(`/api/invoices/${inv.id}/pay`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ amount: amt, method: "Manual" }),
+                      });
+                      if (r.ok) loadInvoices();
+                      else alert(await r.text());
+                    }}
+                    className="px-3 py-1.5 rounded border border-[#3f3f46] hover:bg-[#2a2b30]"
+                  >
+                    Record Payment
+                  </button>
+
+                  <button
+                    onClick={() => downloadPdfFor(inv.id, inv.number)}
+                    className="px-3 py-1.5 rounded border border-[#3f3f46] hover:bg-[#2a2b30]"
+                    title="Download PDF of this invoice"
+                  >
+                    PDF
+                  </button>
+                </div>
               </div>
 
               <div className="text-right">

@@ -2,12 +2,12 @@
 
 /* --- modern dark gray theme --- */
 :root {
-  --background: #0c0c0c;   /* soft dark gray */
-  --sidebar: #494b53;      /* slightly lighter for sidebar */
-  --card: #202e42;         /* card color */
+  --background: #000000;   /* soft dark gray */
+  --sidebar: #3a3434;      /* slightly lighter for sidebar */
+  --card: #222221;         /* card color */
   --text: #e6e3e3;         /* readable white */
   --muted: #a1a1aa;        /* for placeholder text */
-  --accent: #3b82f6;       /* blue accent */
+  --accent: #1e1f21;       /* blue accent */
 }
 
 body {

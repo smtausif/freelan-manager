@@ -36,12 +36,13 @@ type DashData = {
   unpaidTotal: number;
   overdueCount: number;
   thisMonthBilledTotal: number;
+  lastMonthBilledTotal: number;
   hoursTrackedThisMonth: number;
   clients: ClientRow[];
   projects: ProjectRow[];
 };
 
-// ---------------- DONUT CHART COMPONENT ----------------
+// ---------------- DONUT CHART ----------------
 function DonutChart({
   segments,
   size = 160,
@@ -92,7 +93,7 @@ function DonutChart({
         });
 
   return (
-    <div className="flex items-center gap-6">
+    <div className="flex flex-col items-center gap-4">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {paths}
       </svg>
@@ -105,8 +106,8 @@ function DonutChart({
                 className="inline-block h-3 w-3 rounded"
                 style={{ backgroundColor: s.color }}
               />
-              <span className="text-gray-700">{s.label}</span>
-              <span className="ml-auto text-gray-500 tabular-nums">
+              <span className="text-gray-300">{s.label}</span>
+              <span className="ml-auto text-gray-400 tabular-nums">
                 {s.value} {total ? `• ${pct}%` : ""}
               </span>
             </div>
@@ -115,6 +116,80 @@ function DonutChart({
         {label && <div className="text-xs text-gray-500 mt-2">{label}</div>}
       </div>
     </div>
+  );
+}
+
+// ---------------- BAR CHART (2 bars, with gridlines) ----------------
+function MiniBarChart({
+  last,
+  current,
+  width = 360,
+  height = 400,
+}: {
+  last: number;
+  current: number;
+  width?: number;
+  height?: number;
+}) {
+  const max = Math.max(1, last, current);
+  const pad = 30;
+  const innerH = height - pad * 2;
+  const barW = 58;
+  const x1 = 95;
+  const x2 = 205;
+
+  const h1 = (last / max) * innerH;
+  const h2 = (current / max) * innerH;
+  const y1 = height - pad - h1;
+  const y2 = height - pad - h2;
+
+  const gridYs = [0.75, 0.5, 0.25].map((p) => height - pad - innerH * p);
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {/* gridlines */}
+      {gridYs.map((y, i) => (
+        <line
+          key={i}
+          x1={pad}
+          y1={y}
+          x2={width - pad}
+          y2={y}
+          stroke="#3f3f46"
+          strokeWidth={1}
+          opacity={0.35}
+        />
+      ))}
+
+      {/* x-axis */}
+      <line
+        x1={pad}
+        y1={height - pad}
+        x2={width - pad}
+        y2={height - pad}
+        stroke="#a1a1aa"
+        strokeWidth={1.5}
+        opacity={0.6}
+      />
+
+      {/* last month (blue) */}
+      <rect x={x1} y={y1} width={barW} height={h1} rx={7} fill="#60a5fa" />
+      <text x={x1 + barW / 2} y={y1 - 8} textAnchor="middle" className="text-[12px] fill-gray-300">
+        ${Math.round(last).toLocaleString()}
+      </text>
+      <text x={x1 + barW / 2} y={height - pad + 16} textAnchor="middle" className="text-[12px] fill-gray-400">
+        Last Month
+      </text>
+
+      {/* this month (green) */}
+      <rect x={x2} y={y2} width={barW} height={h2} rx={7} fill="#10b981" />
+      <text x={x2 + barW / 2} y={y2 - 8} textAnchor="middle" className="text-[12px] fill-gray-300">
+        ${Math.round(current).toLocaleString()}
+      </text>
+      <text x={x2 + barW / 2} y={height - pad + 16} textAnchor="middle" className="text-[12px] fill-gray-400">
+        This Month
+      </text>
+    </svg>
   );
 }
 
@@ -176,7 +251,7 @@ export default function DashboardPage() {
     return projFilter === "ALL" ? list : list.filter((p) => p.status === projFilter);
   }, [data, projFilter]);
 
-  // ---------- New Pie Chart Data ----------
+  // ---------- Donut data ----------
   const statusCounts = useMemo(() => {
     const counts: Record<ProjectRow["status"], number> = {
       ACTIVE: 0,
@@ -190,13 +265,13 @@ export default function DashboardPage() {
     (data?.projects ?? []).forEach((p) => (counts[p.status] += 1));
 
     const color: Record<ProjectRow["status"], string> = {
-      ACTIVE: "#16a34a60",              // bright green
-      ON_HOLD: "#f59e0b60",             // amber
-      COMPLETED: "#3b82f660",           // blue
-      HANDED_OVER: "#a855f760",         // purple
-      CANCELLED: "#9ca3af",             // medium gray
-      CANCELLED_BY_CLIENT: "#ef444460", // red
-      CANCELLED_BY_FREELANCER: "#71717a", // darker gray
+      ACTIVE: "#16a34a",
+      ON_HOLD: "#f59e0b",
+      COMPLETED: "#3b82f6",
+      HANDED_OVER: "#a855f7",
+      CANCELLED: "#6b7280",
+      CANCELLED_BY_CLIENT: "#ef4444",
+      CANCELLED_BY_FREELANCER: "#71717a",
     };
 
     return (Object.keys(counts) as ProjectRow["status"][]).map((k) => ({
@@ -216,6 +291,21 @@ export default function DashboardPage() {
     "CANCELLED_BY_CLIENT",
     "CANCELLED_BY_FREELANCER",
   ];
+
+  // ---------- Overview helpers ----------
+  const fmtMoney0 = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  const getCount = (status: ProjectRow["status"]) =>
+    (data?.projects ?? []).filter((p) => p.status === status).length;
+
+  const last = data?.lastMonthBilledTotal ?? 0;
+  const current = data?.thisMonthBilledTotal ?? 0;
+  const delta = current - last;
+  const deltaPct = last ? Math.round((delta / last) * 100) : current ? 100 : 0;
+
+  const activeCount = getCount("ACTIVE");
+  const onHoldCount = getCount("ON_HOLD");
+  const completedCount = getCount("COMPLETED");
+  const totalProjects = data?.projects.length ?? 0;
 
   return (
     <div>
@@ -255,23 +345,73 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Projects by Status Chart */}
-      <div className="mt-6 rounded-lg border bg-white p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Projects by Status</h2>
-          <span className="text-sm text-gray-500">
-            {loading ? "" : `${data?.projects.length ?? 0} total`}
+      {/* ONE CARD: Bar (left) + Donut (right) + Overview lines */}
+      <div className="mt-6 rounded-lg border bg-white/5 p-6">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-semibold">Overview</h2>
+          <span className="text-sm text-gray-400">
+            {loading ? "" : `${totalProjects} projects`}
           </span>
         </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Quick glance at billing momentum and project mix for this month.
+        </p>
+
         {loading ? (
-          <div className="text-sm text-gray-400">Loading…</div>
+          <div className="text-sm text-gray-400 text-center">Loading…</div>
         ) : (
-          <DonutChart
-            segments={statusCounts}
-            size={200}
-            inner={96}
-            label="Distribution of all projects"
-          />
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* LEFT: Billing Bar Chart */}
+              <div className="flex flex-col items-center">
+                <h3 className="text-sm font-medium text-gray-300 mb-2">
+                  Billing — Last vs This Month
+                </h3>
+                <MiniBarChart last={last} current={current} />
+              </div>
+
+              {/* RIGHT: Donut */}
+              <div className="flex flex-col items-center">
+                <h3 className="text-sm font-medium text-gray-300 mb-2">
+                  Projects by Status
+                </h3>
+                <DonutChart
+                  segments={statusCounts}
+                  size={220}
+                  inner={100}
+                  label="Distribution of all projects"
+                />
+              </div>
+            </div>
+
+            {/* Overview lines */}
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-white/10 bg-black/10 p-3">
+                <div className="text-xs text-gray-400">This month billed</div>
+                <div className="text-sm font-semibold">
+                  {fmtMoney0(current)}{" "}
+                  <span className={delta >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                    {delta >= 0 ? "▲" : "▼"} {fmtMoney0(Math.abs(delta))} ({deltaPct}%)
+                  </span>{" "}
+                  vs last month
+                </div>
+              </div>
+
+              <div className="rounded-md border border-white/10 bg-black/10 p-3">
+                <div className="text-xs text-gray-400">Active workload</div>
+                <div className="text-sm font-semibold">
+                  {activeCount} active · {onHoldCount} on hold
+                </div>
+              </div>
+
+              <div className="rounded-md border border-white/10 bg-black/10 p-3">
+                <div className="text-xs text-gray-400">Completed projects</div>
+                <div className="text-sm font-semibold">
+                  {completedCount} completed total
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -337,7 +477,7 @@ export default function DashboardPage() {
       <div className="mt-8">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold">Projects</h2>
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
             {statusOptions.map((s) => (
               <button
                 key={s}

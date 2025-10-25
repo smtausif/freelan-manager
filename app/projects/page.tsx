@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Client = { id: string; name: string };
@@ -20,7 +21,7 @@ type Project = {
     | "CANCELLED_BY_FREELANCER";
   isArchived?: boolean;
   handedOverAt?: string | null;
-  client: { id: string; name: string };
+  client: { id: string; name: string } | null;
 };
 
 export default function ProjectsPage() {
@@ -60,19 +61,14 @@ export default function ProjectsPage() {
       body.fixedFee = form.fixedFee ? Number(form.fixedFee) : null;
     }
 
-    await fetch("/api/projects", {
+    const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!res.ok) alert(await res.text());
 
-    setForm({
-      clientId: "",
-      name: "",
-      billingType: "HOURLY",
-      hourlyRate: "",
-      fixedFee: "",
-    });
+    setForm({ clientId: "", name: "", billingType: "HOURLY", hourlyRate: "", fixedFee: "" });
     await load();
   }
 
@@ -90,31 +86,19 @@ export default function ProjectsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cancelledBy: who }),
     });
-    if (!res.ok) {
-      const txt = await res.text();
-      alert(txt);
-      return;
-    }
+    if (!res.ok) { alert(await res.text()); return; }
     await load();
   }
 
-  async function setStatus(
-    id: string,
-    status: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "HANDED_OVER"
-  ) {
+  async function setStatus(id: string, status: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "HANDED_OVER") {
     const nice = status.replaceAll("_", " ");
     if (!confirm(`Set status to "${nice}"?`)) return;
-
     const res = await fetch(`/api/projects/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    if (!res.ok) {
-      const txt = await res.text();
-      alert(txt);
-      return;
-    }
+    if (!res.ok) { alert(await res.text()); return; }
     await load();
   }
 
@@ -141,8 +125,8 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Projects</h1>
 
-      {/* Create project */}
-      <form onSubmit={createProject} className="grid gap-3 bg-white border rounded-lg p-4">
+      {/* Create project (your original dark inputs retained) */}
+      <form onSubmit={createProject} className="grid gap-3 bg-[#111] border border-black/20 rounded-lg p-4">
         <div className="grid gap-3 md:grid-cols-2">
           <select
             className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2 text-white"
@@ -152,9 +136,7 @@ export default function ProjectsPage() {
           >
             <option value="">Select client…</option>
             {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
 
@@ -203,16 +185,20 @@ export default function ProjectsPage() {
           )}
         </div>
 
-        <button className="w-max">Add Project</button>
+        <button className="w-max rounded border border-[#3f3f46] bg-[#1a1a1a] px-3 py-2 text-white hover:bg-[#222]">
+          Add Project
+        </button>
       </form>
 
       {/* List */}
       <div className="grid gap-3">
         {projects.map((p) => (
-          <div key={p.id} className="bg-white border rounded-lg p-4 flex items-center justify-between">
+          <div key={p.id} className="bg-[#111] border border-black/20 rounded-lg p-4 flex items-center justify-between">
             <div>
-              <div className="font-medium text-lg">{p.name}</div>
-              <div className="text-sm text-gray-500">
+              <Link href={`/projects/${p.id}`} className="font-medium text-lg text-blue-400 hover:underline">
+                {p.name}
+              </Link>
+              <div className="text-sm text-gray-400">
                 {p.client?.name ?? "—"} · {p.billingType}
                 {p.billingType === "HOURLY" && p.hourlyRate != null ? ` @ $${p.hourlyRate}/h` : ""}
                 {p.billingType === "FIXED" && p.fixedFee != null ? ` · $${p.fixedFee}` : ""}
@@ -221,63 +207,25 @@ export default function ProjectsPage() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {/* Status controls — ALWAYS enabled so you can fix mistakes */}
-              <button
-                onClick={() => setStatus(p.id, "COMPLETED")}
-                className="px-3 py-1.5 rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
-                title="Mark project as completed"
-              >
+              <button onClick={() => setStatus(p.id, "COMPLETED")} className="px-3 py-1.5 rounded border border-blue-300 text-blue-300 hover:bg-blue-950/30">
                 Complete
               </button>
-
-              <button
-                onClick={() => setStatus(p.id, "HANDED_OVER")}
-                className="px-3 py-1.5 rounded border border-purple-300 text-purple-700 hover:bg-purple-50"
-                title="Mark as handed over to client"
-              >
+              <button onClick={() => setStatus(p.id, "HANDED_OVER")} className="px-3 py-1.5 rounded border border-purple-300 text-purple-300 hover:bg-purple-950/30">
                 Handed Over
               </button>
-
-              <button
-                onClick={() => setStatus(p.id, "ON_HOLD")}
-                className="px-3 py-1.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-50"
-                title="Put project on hold"
-              >
+              <button onClick={() => setStatus(p.id, "ON_HOLD")} className="px-3 py-1.5 rounded border border-amber-300 text-amber-300 hover:bg-amber-950/30">
                 On Hold
               </button>
-
-              <button
-                onClick={() => setStatus(p.id, "ACTIVE")}
-                className="px-3 py-1.5 rounded border border-green-300 text-green-700 hover:bg-green-50"
-                title="Make project active again"
-              >
+              <button onClick={() => setStatus(p.id, "ACTIVE")} className="px-3 py-1.5 rounded border border-green-300 text-green-300 hover:bg-green-950/30">
                 Activate
               </button>
-
-              {/* Cancel by YOU (void unpaid invoices) */}
-              <button
-                onClick={() => cancel(p.id, "freelancer")}
-                className="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50"
-                title="Cancel by you — voids any unpaid invoices"
-              >
+              <button onClick={() => cancel(p.id, "freelancer")} className="px-3 py-1.5 rounded border border-gray-500 text-gray-300 hover:bg-gray-800">
                 Cancel (Me)
               </button>
-
-              {/* Cancel by CLIENT (keep invoices) */}
-              <button
-                onClick={() => cancel(p.id, "client")}
-                className="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50"
-                title="Cancel by client — invoices remain"
-              >
+              <button onClick={() => cancel(p.id, "client")} className="px-3 py-1.5 rounded border border-gray-500 text-gray-300 hover:bg-gray-800">
                 Cancel (Client)
               </button>
-
-              {/* Delete */}
-              <button
-                onClick={() => remove(p.id)}
-                className="px-3 py-1.5 rounded border border-red-300 text-red-600 hover:bg-red-50"
-                title="Delete project (only if no linked invoices)"
-              >
+              <button onClick={() => remove(p.id)} className="px-3 py-1.5 rounded border border-red-500 text-red-400 hover:bg-red-900/30">
                 Delete
               </button>
             </div>

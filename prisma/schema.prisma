@@ -66,11 +66,12 @@ model Project {
   fixedFee    Float?
   status      ProjectStatus @default(ACTIVE)
 
-  handedOverAt DateTime? 
-  timeEntries TimeEntry[]
-  invoices    Invoice[] // ← back-rel to Invoice.project
+  handedOverAt DateTime?
+  timeEntries  TimeEntry[]
+  invoices     Invoice[]     // back-rel to Invoice.project
+  tasks        ProjectTask[] // ← per-project to-dos
 
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
   isArchived Boolean  @default(false)
 }
 
@@ -97,6 +98,42 @@ model TimeEntry {
 
 /**
  * =========================
+ * Tasks (To-Do)
+ * =========================
+ */
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model ProjectTask {
+  id         String       @id @default(cuid())
+  projectId  String
+  project    Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title      String
+  notes      String?
+  status     TaskStatus   @default(TODO)
+  priority   TaskPriority @default(MEDIUM)
+  dueDate    DateTime?
+  order      Int          @default(0)
+
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([projectId, status, priority])
+}
+
+/**
+ * =========================
  * Enums
  * =========================
  */
@@ -113,7 +150,7 @@ enum ProjectStatus {
   CANCELLED_BY_CLIENT
   CANCELLED_BY_FREELANCER
   HANDED_OVER
-  COMPLETED  
+  COMPLETED
 }
 
 enum InvoiceStatus {
@@ -138,7 +175,7 @@ model Invoice {
   clientId String
   client   Client @relation(fields: [clientId], references: [id])
 
-  // NEW: optional link to a single project
+  // optional link to a single project
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id])
 
@@ -150,7 +187,7 @@ model Invoice {
   subtotal   Float
   tax        Float
   total      Float
-  amountPaid Float @default(0) // default to 0
+  amountPaid Float @default(0)
 
   status InvoiceStatus @default(DRAFT)
 
