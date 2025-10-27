@@ -21,9 +21,28 @@ export default function ProjectTodo({ projectId }: { projectId: string }) {
 
   async function load() {
     setLoading(true);
-    const r = await fetch(`/api/projects/${projectId}/tasks`, { cache: "no-store" });
-    setTasks(await r.json());
-    setLoading(false);
+    try {
+      const r = await fetch(`/api/projects/${projectId}/tasks`, { cache: "no-store" });
+      if (!r.ok) {
+        // If the API returned an error, avoid parsing empty/non‑JSON bodies
+        console.error("Failed to load tasks:", r.status, r.statusText);
+        setTasks([]);
+        return;
+      }
+      const text = await r.text();
+      if (!text || text.trim().length === 0) {
+        // Defensive: handle 204/empty responses gracefully
+        setTasks([]);
+        return;
+      }
+      const data = JSON.parse(text) as Task[];
+      setTasks(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error loading tasks", err);
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => { load(); }, [projectId]);
 
