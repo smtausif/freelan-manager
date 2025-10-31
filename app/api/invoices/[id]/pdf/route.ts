@@ -4,6 +4,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import type { PDFFont, RGB } from "pdf-lib";
+import type { Prisma } from "@prisma/client";
 
 type RouteParams = { id: string };
 
@@ -11,7 +13,13 @@ function dollars(n: number) {
   return `$${Number(n).toFixed(2)}`;
 }
 
-async function buildPdf(inv: any): Promise<Buffer> {
+type InvoiceWithRelations = Prisma.InvoiceGetPayload<{
+  include: { client: true; project: true; items: true; user: true };
+}>;
+
+type DrawOpts = { size?: number; font?: PDFFont; color?: RGB };
+
+async function buildPdf(inv: InvoiceWithRelations): Promise<Buffer> {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595.28, 841.89]); // A4 in points
   const { width, height } = page.getSize();
@@ -24,7 +32,7 @@ async function buildPdf(inv: any): Promise<Buffer> {
   const left = 50;
   const right = width - 50;
 
-  const draw = (text: string, x: number, y: number, opts: any = {}) => {
+  const draw = (text: string, x: number, y: number, opts: DrawOpts = {}) => {
     page.drawText(text, {
       x,
       y,
@@ -85,7 +93,7 @@ async function buildPdf(inv: any): Promise<Buffer> {
   draw("Total", priceColX, y, { font: bold });
   y -= 14;
 
-  inv.items.forEach((it: any) => {
+  inv.items.forEach((it) => {
     draw(String(it.description ?? ""), left, y);
     draw(String(it.quantity ?? 0), qtyColX, y);
     draw(dollars(it.unitPrice ?? 0), unitColX, y);

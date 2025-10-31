@@ -37,14 +37,12 @@ function roundForDisplay(min: number | null | undefined, mode: RoundMode): numbe
   if (mode === "NEAREST_15") return Math.round(min / 15) * 15;
   return min;
 }
-
 function fmt(min?: number | null) {
   if (!min || min <= 0) return "—";
   const h = Math.floor(min / 60);
   const m = min % 60;
   return h ? `${h}h ${m}m` : `${m}m`;
 }
-
 function preview(descs: string[], maxLen = 90) {
   const text = descs.join(" • ");
   return text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
@@ -71,8 +69,8 @@ function rangeToParams(range: "THIS_MONTH" | "THIS_WEEK" | "ALL_TIME") {
   return { from: start.toISOString(), to: end.toISOString() };
 }
 const rangeQS = (range: "THIS_MONTH" | "THIS_WEEK" | "ALL_TIME") => {
-  const p = rangeToParams(range);
-  const qs = new URLSearchParams(p as any).toString();
+  const p = rangeToParams(range) as Record<string, string>;
+  const qs = new URLSearchParams(p).toString();
   return qs ? `?${qs}` : "";
 };
 
@@ -125,10 +123,9 @@ export default function TimePage() {
   useEffect(() => {
     fetch("/api/projects").then((r) => r.json()).then(setProjects);
     loadEntries();
-    loadActive(); // restore running state on first load
+    loadActive();
 
-    // light polling to keep banner fresh
-    pollRef.current = setInterval(loadActive, 30000); // every 30s
+    pollRef.current = setInterval(loadActive, 30000); // keep banner fresh
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
@@ -163,7 +160,13 @@ export default function TimePage() {
 
   const saveManual = async () => {
     if (!manual.projectId) return alert("Pick a project");
-    const payload: any = { projectId: manual.projectId, description: manual.desc };
+    const payload: {
+      projectId: string;
+      description?: string;
+      durationMin?: number;
+      start?: string;
+      end?: string;
+    } = { projectId: manual.projectId, description: manual.desc };
     if (manual.minutes) payload.durationMin = Number(manual.minutes);
     if (manual.start) payload.start = manual.start;
     if (manual.end) payload.end = manual.end;
@@ -202,7 +205,6 @@ export default function TimePage() {
     return mins;
   }, [filtered, roundMode]);
 
-  // CSV for a project (same as before)
   const exportCsvForProject = async (pid: string) => {
     const res = await fetch(`/api/time/by-project/${pid}${rangeQS(range)}`, { cache: "no-store" });
     if (!res.ok) return alert("Failed to load project logs.");
@@ -233,93 +235,97 @@ export default function TimePage() {
   };
 
   return (
-    <div className="p-6 bg-[#0a0a0a] text-white min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Time Tracker</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Time Tracker</h1>
 
-      {/* Running banner (always visible when active) */}
+      {/* Running banner */}
       {active && (
-        <div className="mb-4 rounded-lg border border-[#3f3f46] bg-[#141518] p-4 flex items-center gap-3">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-slate-900 flex items-center gap-4">
           <div className="text-sm">
             <div className="font-medium">
               Timer running on{" "}
-              <span className="text-white">
+              <span className="text-slate-900">
                 {active.project?.name ?? "Untitled"}{" "}
-                <span className="text-gray-400">— {active.project?.client?.name ?? "No client"}</span>
+                <span className="text-slate-500">— {active.project?.client?.name ?? "No client"}</span>
               </span>
             </div>
-            <div className="text-gray-400 text-xs">started at {new Date(active.start).toLocaleTimeString()} · {runningLabel}</div>
+            <div className="text-slate-500 text-xs">
+              started at {new Date(active.start).toLocaleTimeString()} · {runningLabel}
+            </div>
           </div>
-          <button onClick={stopTimer} className="ml-auto px-3 py-2 bg-red-600 rounded hover:bg-red-700">
+          <button onClick={stopTimer} className="ml-auto rounded-full bg-rose-600 px-3 py-2 text-white hover:bg-rose-700">
             Stop
           </button>
         </div>
       )}
 
       {/* Timer card */}
-      <div className="space-y-4 bg-[#111] p-6 rounded-lg shadow-md max-w-2xl">
-        <select
-          className="w-full p-2 rounded bg-[#1b1b1b] border border-gray-600 disabled:opacity-60"
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-          disabled={isTracking} // prevent switching while something runs
-        >
-          <option value="">Select project...</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} — {p.client?.name ?? "No client"}
-            </option>
-          ))}
-        </select>
-
-        <input
-          className="w-full p-2 rounded bg-[#1b1b1b] border border-gray-600"
-          placeholder="Work description (optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          disabled={isTracking}
-        />
-
-        <div className="flex flex-wrap items-center gap-3">
-          {!isTracking ? (
-            <button onClick={() => startTimer()} className="px-4 py-2 bg-green-600 rounded hover:bg-green-700">
-              Start Timer
-            </button>
-          ) : (
-            <button onClick={stopTimer} className="px-4 py-2 bg-red-600 rounded hover:bg-red-700">
-              Stop Timer
-            </button>
-          )}
-
-          <button
-            onClick={() => {
-              loadEntries();
-              loadTotals();
-              loadActive();
-            }}
-            className="px-3 py-2 rounded bg-[#2a2b30] border border-[#3f3f46] hover:bg-[#34363c]"
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-2xl">
+        <div className="grid grid-cols-1 gap-3">
+          <select
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none disabled:opacity-60"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            disabled={isTracking}
           >
-            Refresh
-          </button>
+            <option value="">Select project…</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {p.client?.name ?? "No client"}
+              </option>
+            ))}
+          </select>
 
-          <div className="ml-auto">
+          <input
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+            placeholder="Work description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={isTracking}
+          />
+
+          <div className="flex flex-wrap items-center gap-3">
+            {!isTracking ? (
+              <button onClick={() => startTimer()} className="rounded-full bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700">
+                Start Timer
+              </button>
+            ) : (
+              <button onClick={stopTimer} className="rounded-full bg-rose-600 px-4 py-2 text-white hover:bg-rose-700">
+                Stop Timer
+              </button>
+            )}
+
             <button
-              onClick={() => setShowManual(true)}
-              className="px-3 py-2 rounded bg-[#2a2b30] border border-[#3f3f46] hover:bg-[#34363c]"
+              onClick={() => {
+                loadEntries();
+                loadTotals();
+                loadActive();
+              }}
+              className="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
-              + Add manual
+              Refresh
             </button>
+
+            <div className="ml-auto">
+              <button
+                onClick={() => setShowManual(true)}
+                className="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                + Add manual
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filters row */}
-      <div className="mt-8 flex flex-wrap gap-3 items-center">
-        <div className="text-xl font-semibold mr-auto">Recent Entries</div>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="text-xl font-semibold mr-auto text-slate-900">Recent Entries</div>
 
         <select
           value={projectFilter}
           onChange={(e) => setProjectFilter(e.target.value)}
-          className="bg-[#1b1b1b] border border-gray-600 rounded px-2 py-1 text-sm"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm"
         >
           <option value="ALL">All projects</option>
           {projects.map((p) => (
@@ -333,13 +339,13 @@ export default function TimePage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search description / client / project"
-          className="bg-[#1b1b1b] border border-gray-600 rounded px-2 py-1 text-sm min-w-[260px]"
+          className="min-w-[260px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm"
         />
 
         <select
           value={roundMode}
           onChange={(e) => setRoundMode(e.target.value as RoundMode)}
-          className="bg-[#1b1b1b] border border-gray-600 rounded px-2 py-1 text-sm"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm"
         >
           <option value="NONE">Rounding: none</option>
           <option value="NEAREST_5">Rounding: nearest 5m</option>
@@ -348,38 +354,38 @@ export default function TimePage() {
       </div>
 
       {/* Summary line for current list */}
-      <div className="mt-3 text-sm text-gray-300">
+      <div className="text-sm text-slate-600">
         Showing <span className="font-semibold">{filtered.length}</span> log{filtered.length === 1 ? "" : "s"} · Total{" "}
         <span className="font-semibold">{fmt(listTotal)}</span>{" "}
-        {roundMode !== "NONE" && <span className="text-gray-400">(rounded)</span>}
+        {roundMode !== "NONE" && <span className="text-slate-400">(rounded)</span>}
       </div>
 
       {/* Entries list */}
-      <div className="mt-3 space-y-2">
-        {filtered.length === 0 && <div className="text-sm text-gray-400">No entries match your filters.</div>}
+      <div className="space-y-2">
+        {filtered.length === 0 && <div className="text-sm text-slate-500">No entries match your filters.</div>}
         {filtered.map((e) => {
           const displayMin = roundForDisplay(e.durationMin ?? 0, roundMode);
           return (
             <div
               key={e.id}
-              className="rounded-lg border border-[#3f3f46] bg-[#1b1c20] p-3 flex items-center justify-between"
+              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
             >
               <div className="min-w-0">
-                <div className="font-medium">
+                <div className="font-medium text-slate-900">
                   {e.project?.name ?? "Untitled"}{" "}
-                  <span className="text-gray-400">— {e.project?.client?.name ?? "No client"}</span>
+                  <span className="text-slate-500">— {e.project?.client?.name ?? "No client"}</span>
                 </div>
-                <div className="text-sm text-gray-400 truncate max-w-[70ch]">
+                <div className="max-w-[70ch] truncate text-sm text-slate-500">
                   {e.description || "No description"}
                 </div>
-                <div className="text-xs text-gray-500">{new Date(e.start).toLocaleString()}</div>
+                <div className="text-xs text-slate-400">{new Date(e.start).toLocaleString()}</div>
               </div>
-              <div className="text-right shrink-0">
-                <div className="font-semibold">{e.end ? fmt(displayMin) : "• running"}</div>
-                <div className="mt-1 flex gap-2 justify-end">
+              <div className="shrink-0 text-right">
+                <div className="font-semibold text-slate-900">{e.end ? fmt(displayMin) : "• running"}</div>
+                <div className="mt-1 flex justify-end gap-2">
                   <button
                     onClick={() => removeEntry(e.id)}
-                    className="text-xs px-2 py-1 border border-[#444] rounded hover:bg-[#2a2b30]"
+                    className="rounded-full border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                     title="Delete"
                   >
                     Delete
@@ -391,14 +397,14 @@ export default function TimePage() {
         })}
       </div>
 
-      {/* Project totals (now with per-project Start/Stop + CSV) */}
-      <div className="mt-10">
+      {/* Project totals */}
+      <div>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Project totals</h2>
+          <h2 className="text-xl font-semibold text-slate-900">Project totals</h2>
           <select
             value={range}
-            onChange={(e) => setRange(e.target.value as any)}
-            className="bg-[#1b1b1b] border border-gray-600 rounded px-2 py-1 text-sm"
+            onChange={(e) => setRange(e.target.value as "THIS_WEEK" | "THIS_MONTH" | "ALL_TIME")}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm"
           >
             <option value="THIS_WEEK">This week</option>
             <option value="THIS_MONTH">This month</option>
@@ -407,23 +413,20 @@ export default function TimePage() {
         </div>
 
         {totals.length === 0 ? (
-          <div className="text-sm text-gray-400">No tracked time in this range.</div>
+          <div className="text-sm text-slate-500">No tracked time in this range.</div>
         ) : (
-          <div className="divide-y divide-[#2a2b30] rounded-lg border border-[#3f3f46] overflow-hidden">
+          <div className="overflow-hidden rounded-xl border border-slate-200">
             {totals.map((t) => {
               const isThisRunning = active?.projectId === t.projectId;
               return (
-                <div key={t.projectId} className="bg-[#121317] px-4 py-3 hover:bg-[#17181d]">
+                <div key={t.projectId} className="bg-white px-4 py-3 hover:bg-slate-50 border-b last:border-b-0">
                   <div className="flex items-center justify-between gap-3">
                     {/* Left side → summary link */}
-                    <Link
-                      href={`/reports/time/${t.projectId}${rangeQS(range)}`}
-                      className="min-w-0 flex-1 block"
-                    >
-                      <div className="font-medium truncate">
-                        {t.projectName} <span className="text-gray-400">— {t.clientName}</span>
+                    <Link href={`/reports/time/${t.projectId}${rangeQS(range)}`} className="block min-w-0 flex-1">
+                      <div className="truncate font-medium text-slate-900">
+                        {t.projectName} <span className="text-slate-500">— {t.clientName}</span>
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-slate-500">
                         {t.recentDescriptions.length
                           ? preview(t.recentDescriptions)
                           : `${t.entryCount} log${t.entryCount === 1 ? "" : "s"}`}
@@ -431,8 +434,8 @@ export default function TimePage() {
                     </Link>
 
                     {/* Right side → total + start/stop + CSV */}
-                    <div className="shrink-0 flex items-center gap-2">
-                      <div className="font-semibold">{fmt(t.totalMin)}</div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <div className="font-semibold text-slate-900">{fmt(t.totalMin)}</div>
 
                       {!isThisRunning ? (
                         <button
@@ -441,7 +444,7 @@ export default function TimePage() {
                             e.stopPropagation();
                             startTimer(t.projectId, "");
                           }}
-                          className="text-xs px-2 py-1 border border-[#444] rounded hover:bg-[#2a2b30]"
+                          className="rounded-full border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                           title="Start timer on this project"
                           disabled={!!active && !isThisRunning}
                         >
@@ -454,7 +457,7 @@ export default function TimePage() {
                             e.stopPropagation();
                             stopTimer();
                           }}
-                          className="text-xs px-2 py-1 border border-[#444] rounded hover:bg-[#2a2b30]"
+                          className="rounded-full border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                           title="Stop current timer"
                         >
                           Stop
@@ -467,7 +470,7 @@ export default function TimePage() {
                           e.stopPropagation();
                           exportCsvForProject(t.projectId);
                         }}
-                        className="text-xs px-2 py-1 border border-[#444] rounded hover:bg-[#2a2b30]"
+                        className="rounded-full border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                         title="Export CSV for this project"
                       >
                         Export CSV
@@ -483,12 +486,12 @@ export default function TimePage() {
 
       {/* Manual add modal */}
       {showManual && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-lg rounded-lg border border-[#3f3f46] bg-[#0f1013] p-5 space-y-4">
-            <div className="text-lg font-semibold">Add manual time</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-lg space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="text-lg font-semibold text-slate-900">Add manual time</div>
 
             <select
-              className="w-full p-2 rounded bg-[#1b1b1b] border border-gray-600"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
               value={manual.projectId}
               onChange={(e) => setManual((m) => ({ ...m, projectId: e.target.value }))}
             >
@@ -501,35 +504,40 @@ export default function TimePage() {
             </select>
 
             <input
-              className="w-full p-2 rounded bg-[#1b1b1b] border border-gray-600"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
               placeholder="Description (optional)"
               value={manual.desc}
               onChange={(e) => setManual((m) => ({ ...m, desc: e.target.value }))}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <input
                 type="datetime-local"
-                className="p-2 rounded bg-[#1b1b1b] border border-gray-600"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                 value={manual.start}
                 onChange={(e) => setManual((m) => ({ ...m, start: e.target.value }))}
               />
               <input
                 type="datetime-local"
-                className="p-2 rounded bg-[#1b1b1b] border border-gray-600"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                 value={manual.end}
                 onChange={(e) => setManual((m) => ({ ...m, end: e.target.value }))}
               />
               <input
                 type="number"
-                className="p-2 rounded bg-[#1b1b1b] border border-gray-600"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                 value={manual.minutes}
-                onChange={(e) => setManual((m) => ({ ...m, minutes: e.target.value as any }))}
+                onChange={(e) =>
+                  setManual((m) => ({
+                    ...m,
+                    minutes: e.target.value === "" ? "" : Number(e.target.value),
+                  }))
+                }
                 placeholder="Duration min (optional)"
               />
             </div>
 
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-slate-500">
               Tip: set <b>start+end</b> (duration is calculated) or just set <b>duration</b>.
               If neither is set, it defaults to 60 minutes.
             </div>
@@ -537,13 +545,13 @@ export default function TimePage() {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowManual(false)}
-                className="px-3 py-2 rounded border border-[#3f3f46] hover:bg-[#191a20]"
+                className="rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 onClick={saveManual}
-                className="px-3 py-2 rounded bg-green-600 hover:bg-green-700"
+                className="rounded-full bg-slate-900 px-3 py-2 text-white hover:bg-slate-800"
               >
                 Save
               </button>

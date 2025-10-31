@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Client = { id: string; name: string };
-
 type Project = {
   id: string;
   name: string;
+  clientId: string | null;
+  client?: Client | null;
   billingType: "HOURLY" | "FIXED";
   hourlyRate?: number | null;
   fixedFee?: number | null;
@@ -20,215 +21,323 @@ type Project = {
     | "CANCELLED_BY_CLIENT"
     | "CANCELLED_BY_FREELANCER";
   isArchived?: boolean;
-  handedOverAt?: string | null;
-  client: { id: string; name: string } | null;
+  createdAt?: string;
 };
 
+function prettyBilling(p: Project) {
+  if (p.billingType === "HOURLY") {
+    const r = p.hourlyRate ?? 0;
+    return `Hourly · $${Number(r).toFixed(2)}/hr`;
+  }
+  const fee = p.fixedFee ?? 0;
+  return `Fixed · $${Number(fee).toFixed(2)}`;
+}
+
+function StatusBadge({
+  status,
+  archived,
+}: {
+  status: Project["status"];
+  archived?: boolean;
+}) {
+  const map: Record<Project["status"], string> = {
+    ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    ON_HOLD: "bg-amber-50 text-amber-700 border-amber-200",
+    COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
+    HANDED_OVER: "bg-slate-100 text-slate-700 border-slate-200",
+    CANCELLED: "bg-slate-100 text-slate-600 border-slate-200",
+    CANCELLED_BY_CLIENT: "bg-rose-50 text-rose-700 border-rose-200",
+    CANCELLED_BY_FREELANCER: "bg-violet-50 text-violet-700 border-violet-200",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${map[status]}`}
+      title={archived ? "Archived" : undefined}
+    >
+      {status.replaceAll("_", " ")}
+      {archived ? (
+        <span className="ml-1 rounded-full bg-slate-300/50 px-1.5 text-[10px] text-slate-700">
+          archived
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export default function ProjectsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [form, setForm] = useState({
-    clientId: "",
-    name: "",
-    billingType: "HOURLY" as "HOURLY" | "FIXED",
-    hourlyRate: "",
-    fixedFee: "",
-  });
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<"ALL" | Project["status"]>("ALL");
+  const [showArchived, setShowArchived] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  // new project form
+  const [name, setName] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [billingType, setBillingType] =
+    useState<Project["billingType"]>("HOURLY");
+  const [hourlyRate, setHourlyRate] = useState<string>("");
+  const [fixedFee, setFixedFee] = useState<string>("");
+
+  const [clients, setClients] = useState<Client[]>([]);
 
   async function load() {
-    const [c, p] = await Promise.all([
-      fetch("/api/clients").then((r) => r.json()),
-      fetch("/api/projects").then((r) => r.json()),
-    ]);
-    setClients(c.map((x: any) => ({ id: x.id, name: x.name })));
-    setProjects(p);
+    const r = await fetch("/api/projects", { cache: "no-store" });
+    const data = (await r.json()) as Project[];
+    setProjects(data);
   }
-
   useEffect(() => {
     load();
+    fetch("/api/clients")
+      .then((r) => r.json())
+      .then(setClients);
   }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return projects.filter((p) => {
+      if (!showArchived && p.isArchived) return false;
+      if (status !== "ALL" && p.status !== status) return false;
+      if (!q) return true;
+      const hay = [p.name, p.client?.name ?? "", p.billingType, prettyBilling(p), p.status]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [projects, search, status, showArchived]);
 
   async function createProject(e: React.FormEvent) {
     e.preventDefault();
+    if (!name.trim()) return alert("Project name required");
     const body: any = {
-      clientId: form.clientId,
-      name: form.name,
-      billingType: form.billingType,
+      name: name.trim(),
+      billingType,
+      clientId: clientId || null,
     };
-    if (form.billingType === "HOURLY") {
-      body.hourlyRate = form.hourlyRate ? Number(form.hourlyRate) : null;
-    } else {
-      body.fixedFee = form.fixedFee ? Number(form.fixedFee) : null;
-    }
+    if (billingType === "HOURLY") body.hourlyRate = Number(hourlyRate || 0);
+    if (billingType === "FIXED") body.fixedFee = Number(fixedFee || 0);
 
-    const res = await fetch("/api/projects", {
+    const r = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) alert(await res.text());
-
-    setForm({ clientId: "", name: "", billingType: "HOURLY", hourlyRate: "", fixedFee: "" });
-    await load();
+    if (!r.ok) {
+      alert("Failed to create project");
+      return;
+    }
+    setName("");
+    setClientId("");
+    setHourlyRate("");
+    setFixedFee("");
+    setBillingType("HOURLY");
+    setCreating(false);
+    load();
   }
 
-  async function remove(id: string) {
-    if (!confirm("Delete this project? (Make sure invoices are handled first.)")) return;
-    await fetch(`/api/projects/${id}`, { method: "DELETE" });
-    await load();
+  async function setStatusFor(id: string, s: Project["status"]) {
+    const r = await fetch(`/api/projects/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: s }),
+    });
+    if (r.ok) load();
   }
 
-  async function cancel(id: string, who: "freelancer" | "client") {
-    const label = who === "freelancer" ? "Cancel by YOU (void unpaid invoices)" : "Cancel by CLIENT (keep invoices)";
-    if (!confirm(`${label}?`)) return;
-    const res = await fetch(`/api/projects/${id}/cancel`, {
+  async function cancelProject(id: string, who: "client" | "freelancer") {
+    const r = await fetch(`/api/projects/${id}/cancel`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cancelledBy: who }),
     });
-    if (!res.ok) { alert(await res.text()); return; }
-    await load();
-  }
-
-  async function setStatus(id: string, status: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "HANDED_OVER") {
-    const nice = status.replaceAll("_", " ");
-    if (!confirm(`Set status to "${nice}"?`)) return;
-    const res = await fetch(`/api/projects/${id}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) { alert(await res.text()); return; }
-    await load();
-  }
-
-  function statusChip(s: Project["status"], archived?: boolean) {
-    const base = "text-xs px-2 py-1 rounded border";
-    const map: Record<string, string> = {
-      ACTIVE: "bg-green-50 text-green-700 border-green-200",
-      ON_HOLD: "bg-amber-50 text-amber-700 border-amber-200",
-      COMPLETED: "bg-blue-50 text-blue-700 border-blue-200",
-      HANDED_OVER: "bg-purple-50 text-purple-700 border-purple-200",
-      CANCELLED: "bg-gray-100 text-gray-700 border-gray-200",
-      CANCELLED_BY_CLIENT: "bg-red-50 text-red-700 border-red-200",
-      CANCELLED_BY_FREELANCER: "bg-zinc-100 text-zinc-700 border-zinc-200",
-    };
-    return (
-      <div className="flex items-center gap-2">
-        <span className={`${base} ${map[s] || ""}`}>{s.replaceAll("_", " ")}</span>
-        {archived ? <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-200 text-zinc-700">ARCHIVED</span> : null}
-      </div>
-    );
+    if (r.ok) load();
+    else alert(await r.text());
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Projects</h1>
-
-      {/* Create project (your original dark inputs retained) */}
-      <form onSubmit={createProject} className="grid gap-3 bg-[#111] border border-black/20 rounded-lg p-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          <select
-            className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2 text-white"
-            value={form.clientId}
-            onChange={(e) => setForm((v) => ({ ...v, clientId: e.target.value }))}
-            required
-          >
-            <option value="">Select client…</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          Projects
+        </h1>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <input
-            className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2 text-white"
-            placeholder="Project name"
-            value={form.name}
-            onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
-            required
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects, clients…"
+            className="min-w-[260px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm"
           />
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
           <select
-            className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2 text-white"
-            value={form.billingType}
+            value={status}
             onChange={(e) =>
-              setForm((v) => ({
-                ...v,
-                billingType: e.target.value as "HOURLY" | "FIXED",
-                hourlyRate: e.target.value === "HOURLY" ? v.hourlyRate : "",
-                fixedFee: e.target.value === "FIXED" ? v.fixedFee : "",
-              }))
+              setStatus(e.target.value as "ALL" | Project["status"])
             }
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm"
           >
-            <option value="HOURLY">Hourly</option>
-            <option value="FIXED">Fixed fee</option>
+            <option value="ALL">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="ON_HOLD">On hold</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="HANDED_OVER">Handed over</option>
+            <option value="CANCELLED">Cancelled</option>
+            <option value="CANCELLED_BY_CLIENT">Cancelled by client</option>
+            <option value="CANCELLED_BY_FREELANCER">Cancelled by freelancer</option>
           </select>
-
-          {form.billingType === "HOURLY" ? (
+          <label className="inline-flex items-center gap-2 text-sm text-slate-600">
             <input
-              className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2 text-white"
-              placeholder="Hourly rate (e.g., 85)"
-              value={form.hourlyRate}
-              onChange={(e) => setForm((v) => ({ ...v, hourlyRate: e.target.value }))}
-              required
+              type="checkbox"
+              className="accent-slate-700"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
             />
-          ) : (
-            <input
-              className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2 text-white"
-              placeholder="Fixed fee (e.g., 3200)"
-              value={form.fixedFee}
-              onChange={(e) => setForm((v) => ({ ...v, fixedFee: e.target.value }))}
-              required
-            />
-          )}
+            Show archived
+          </label>
+          <button
+            onClick={() => setCreating((s) => !s)}
+            className="rounded-full bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            {creating ? "Close" : "New Project"}
+          </button>
         </div>
+      </div>
 
-        <button className="w-max rounded border border-[#3f3f46] bg-[#1a1a1a] px-3 py-2 text-white hover:bg-[#222]">
-          Add Project
-        </button>
-      </form>
+      {creating && (
+        <form
+          onSubmit={createProject}
+          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
+          <div className="grid gap-3 md:grid-cols-4">
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+              placeholder="Project name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+            <select
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+            >
+              <option value="">No client</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+              value={billingType}
+              onChange={(e) =>
+                setBillingType(e.target.value as Project["billingType"])
+              }
+            >
+              <option value="HOURLY">Hourly</option>
+              <option value="FIXED">Fixed</option>
+            </select>
+            {billingType === "HOURLY" ? (
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                placeholder="Hourly rate"
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(e.target.value)}
+              />
+            ) : (
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                placeholder="Fixed fee"
+                value={fixedFee}
+                onChange={(e) => setFixedFee(e.target.value)}
+              />
+            )}
+          </div>
+          <div className="mt-3">
+            <button className="rounded-full bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
+              Create
+            </button>
+          </div>
+        </form>
+      )}
 
-      {/* List */}
       <div className="grid gap-3">
-        {projects.map((p) => (
-          <div key={p.id} className="bg-[#111] border border-black/20 rounded-lg p-4 flex items-center justify-between">
-            <div>
-              <Link href={`/projects/${p.id}`} className="font-medium text-lg text-blue-400 hover:underline">
-                {p.name}
-              </Link>
-              <div className="text-sm text-gray-400">
-                {p.client?.name ?? "—"} · {p.billingType}
-                {p.billingType === "HOURLY" && p.hourlyRate != null ? ` @ $${p.hourlyRate}/h` : ""}
-                {p.billingType === "FIXED" && p.fixedFee != null ? ` · $${p.fixedFee}` : ""}
-              </div>
-              <div className="mt-2">{statusChip(p.status, p.isArchived)}</div>
-            </div>
+        {filtered.length === 0 && (
+          <div className="text-sm text-slate-500">No matching projects.</div>
+        )}
 
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={() => setStatus(p.id, "COMPLETED")} className="px-3 py-1.5 rounded border border-blue-300 text-blue-300 hover:bg-blue-950/30">
-                Complete
-              </button>
-              <button onClick={() => setStatus(p.id, "HANDED_OVER")} className="px-3 py-1.5 rounded border border-purple-300 text-purple-300 hover:bg-purple-950/30">
-                Handed Over
-              </button>
-              <button onClick={() => setStatus(p.id, "ON_HOLD")} className="px-3 py-1.5 rounded border border-amber-300 text-amber-300 hover:bg-amber-950/30">
-                On Hold
-              </button>
-              <button onClick={() => setStatus(p.id, "ACTIVE")} className="px-3 py-1.5 rounded border border-green-300 text-green-300 hover:bg-green-950/30">
-                Activate
-              </button>
-              <button onClick={() => cancel(p.id, "freelancer")} className="px-3 py-1.5 rounded border border-gray-500 text-gray-300 hover:bg-gray-800">
-                Cancel (Me)
-              </button>
-              <button onClick={() => cancel(p.id, "client")} className="px-3 py-1.5 rounded border border-gray-500 text-gray-300 hover:bg-gray-800">
-                Cancel (Client)
-              </button>
-              <button onClick={() => remove(p.id)} className="px-3 py-1.5 rounded border border-red-500 text-red-400 hover:bg-red-900/30">
-                Delete
-              </button>
-            </div>
+        {filtered.map((p) => (
+          <div
+            key={p.id}
+            className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+          >
+            <Link href={`/projects/${p.id}`} className="min-w-0 group block">
+              <div className="truncate text-base font-semibold text-slate-900 group-hover:underline">
+                {p.name}
+              </div>
+              <div className="mt-1 text-sm text-slate-500">
+                {p.client?.name ?? "—"} • {prettyBilling(p)}
+              </div>
+              <div className="mt-2">
+                <StatusBadge status={p.status} archived={!!p.isArchived} />
+              </div>
+            </Link>
+
+            {/* Buttons - border only */}
+            <div className="flex flex-wrap items-center gap-2">
+  <button
+    onClick={() => setStatusFor(p.id, "ACTIVE")}
+    className="rounded-full border-2 border-emerald-400/80 px-3 py-1.5 text-sm font-medium text-emerald-300 bg-transparent hover:bg-emerald-950/40 hover:border-emerald-300 transition-colors duration-150"
+  >
+    Set Active
+  </button>
+
+  <button
+    onClick={() => setStatusFor(p.id, "ON_HOLD")}
+    className="rounded-full border-2 border-amber-400/80 px-3 py-1.5 text-sm font-medium text-amber-300 bg-transparent hover:bg-amber-950/40 hover:border-amber-300 transition-colors duration-150"
+  >
+    On Hold
+  </button>
+
+  <button
+    onClick={() => setStatusFor(p.id, "COMPLETED")}
+    className="rounded-full border-2 border-blue-400/80 px-3 py-1.5 text-sm font-medium text-blue-300 bg-transparent hover:bg-blue-950/40 hover:border-blue-300 transition-colors duration-150"
+  >
+    Complete
+  </button>
+
+  <button
+    onClick={() => setStatusFor(p.id, "HANDED_OVER")}
+    className="rounded-full border-2 border-violet-400/80 px-3 py-1.5 text-sm font-medium text-violet-300 bg-transparent hover:bg-violet-950/40 hover:border-violet-300 transition-colors duration-150"
+    title="Final; archives project"
+  >
+    Hand Over
+  </button>
+
+  <div className="w-px self-stretch bg-slate-200" />
+
+  <button
+    onClick={() => cancelProject(p.id, "client")}
+    className="rounded-full border-2 border-rose-400/80 px-3 py-1.5 text-sm font-medium text-rose-300 bg-transparent hover:bg-rose-950/40 hover:border-rose-300 transition-colors duration-150"
+    title="Mark cancelled by client"
+  >
+    Cancel (Client)
+  </button>
+
+  <button
+    onClick={() => cancelProject(p.id, "freelancer")}
+    className="rounded-full border-2 border-slate-400/80 px-3 py-1.5 text-sm font-medium text-slate-300 bg-transparent hover:bg-slate-950/40 hover:border-slate-300 transition-colors duration-150"
+    title="Void unpaid invoices, archive"
+  >
+    Cancel (You)
+  </button>
+</div>
+
           </div>
         ))}
       </div>

@@ -23,7 +23,7 @@ export async function GET(
     userId,
     projectId,
     // finished entries only; keeps numbers stable
-    NOT: { end: null as any },
+    end: { not: null },
     ...(from ? { start: { gte: new Date(from) } } : {}),
     ...(to ? { start: { lte: new Date(to) } } : {}),
   };

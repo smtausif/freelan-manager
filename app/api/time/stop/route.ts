@@ -10,7 +10,13 @@ async function getUserId() {
 
 export async function POST(req: Request) {
   const userId = await getUserId();
-  const { entryId } = await req.json().catch(() => ({} as any));
+  let entryId: string | undefined;
+  try {
+    const body = (await req.json()) as { entryId?: string };
+    entryId = body.entryId;
+  } catch {
+    entryId = undefined;
+  }
 
   // Find the running entry (or use provided entryId)
   const running =

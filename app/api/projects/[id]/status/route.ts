@@ -1,3 +1,4 @@
+// app/api/projects/[id]/status/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/db";
 
@@ -17,7 +18,11 @@ export async function PATCH(req: Request, { params }: Params) {
   // COMPLETED is NOT final — keep it unarchived so user can still hand over or revert.
   const shouldArchive = status === "HANDED_OVER";
 
-  const data: any = {
+  const data: {
+    status: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "HANDED_OVER";
+    isArchived: boolean;
+    handedOverAt: Date | null;
+  } = {
     status,
     isArchived: shouldArchive ? true : false,
     handedOverAt: status === "HANDED_OVER" ? new Date() : null,

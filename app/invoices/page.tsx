@@ -109,15 +109,15 @@ export default function InvoicesPage() {
 
   const statusChip = (s: Invoice["status"]) => {
     const map: Record<Invoice["status"], string> = {
-      DRAFT: "bg-[#34363c] text-gray-200 border border-[#3f3f46]",
-      SENT: "bg-blue-600/20 text-blue-300 border border-blue-600/30",
-      PAID: "bg-green-600/20 text-green-300 border border-green-600/30",
-      OVERDUE: "bg-red-600/20 text-red-300 border border-red-600/30",
-      VOID: "bg-gray-600/20 text-gray-300 border border-gray-600/30",
-      PARTIAL: "bg-amber-600/20 text-amber-300 border border-amber-600/30",
+      DRAFT: "bg-slate-100 text-slate-700 border border-slate-200",
+      SENT: "bg-blue-50 text-blue-700 border border-blue-200",
+      PAID: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+      OVERDUE: "bg-rose-50 text-rose-700 border border-rose-200",
+      VOID: "bg-slate-50 text-slate-500 border border-slate-200",
+      PARTIAL: "bg-amber-50 text-amber-700 border border-amber-200",
     };
-    return <span className={`text-xs px-2 py-1 rounded ${map[s]}`}>{s}</span>;
-    // feel free to titlecase s if you want it prettier
+    const label = s.replace("_", " ").toUpperCase();
+    return <span className={`text-xs px-2 py-1 rounded-full ${map[s]}`}>{label}</span>;
   };
 
   function dollars(n: number) {
@@ -173,14 +173,18 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Invoices</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Invoices</h1>
 
       {/* Generate invoice */}
-      <form onSubmit={generateInvoice} className="grid gap-3 bg-white border rounded-lg p-4 max-w-4xl">
-        <div className="font-medium">Generate from time</div>
+      <form
+        onSubmit={generateInvoice}
+        className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-4xl"
+      >
+        <div className="text-slate-900 font-medium">Generate from time</div>
+
         <div className="grid gap-3 md:grid-cols-4">
           <select
-            className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none"
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
           >
@@ -193,7 +197,7 @@ export default function InvoicesPage() {
           </select>
 
           <select
-            className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none disabled:opacity-60"
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
             disabled={!clientId}
@@ -208,36 +212,42 @@ export default function InvoicesPage() {
 
           <input
             type="date"
-            className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900"
             value={start}
             onChange={(e) => setStart(e.target.value)}
             placeholder="Start date"
           />
           <input
             type="date"
-            className="bg-[#2e3035] border border-[#3f3f46] rounded-lg px-3 py-2"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900"
             value={end}
             onChange={(e) => setEnd(e.target.value)}
             placeholder="End date"
           />
         </div>
+
         <div>
-          <button className="px-4 py-2">Generate Invoice</button>
+          <button className="rounded-full bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
+            Generate Invoice
+          </button>
         </div>
-        <p className="text-xs text-gray-400">
+
+        <p className="text-xs text-slate-500">
           Tip: choose a project to create a dedicated project invoice. Leave dates empty to include all unbilled time.
         </p>
       </form>
 
       {/* Filter + CSV */}
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-400">Filter:</span>
+        <span className="text-sm text-slate-500">Filter:</span>
         {(["ALL", "DRAFT", "SENT", "PAID", "OVERDUE", "VOID", "PARTIAL"] as const).map((s) => (
           <button
             key={s}
-            onClick={() => setFilter(s as any)}
-            className={`px-3 py-1.5 rounded border ${
-              filter === s ? "bg-[#2a2b30] border-[#3f3f46]" : "bg-transparent border-[#3f3f46]"
+            onClick={() => setFilter(s)}
+            className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+              filter === s
+                ? "border-slate-300 bg-slate-50 text-slate-800"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
             }`}
           >
             {s}
@@ -248,8 +258,10 @@ export default function InvoicesPage() {
         <button
           onClick={downloadCsv}
           disabled={exporting || invoices.length === 0}
-          className={`px-3 py-1.5 rounded border border-[#3f3f46] ${
-            exporting || invoices.length === 0 ? "opacity-50 cursor-not-allowed" : "hover:bg-[#2a2b30]"
+          className={`rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium ${
+            exporting || invoices.length === 0
+              ? "cursor-not-allowed opacity-50"
+              : "bg-white text-slate-700 hover:bg-slate-50"
           }`}
           title={invoices.length === 0 ? "No invoices to export" : "Download CSV for this section"}
           aria-busy={exporting}
@@ -260,18 +272,21 @@ export default function InvoicesPage() {
 
       {/* List */}
       <div className="grid gap-3">
-        {invoices.length === 0 && <div className="text-sm text-gray-400">No invoices yet.</div>}
+        {invoices.length === 0 && <div className="text-sm text-slate-500">No invoices yet.</div>}
 
         {invoices.map((inv) => {
           const balance = Math.max(0, inv.total - (inv.amountPaid ?? 0));
           return (
-            <div key={inv.id} className="bg-white border rounded-lg p-4 flex items-start justify-between">
+            <div
+              key={inv.id}
+              className="flex items-start justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
               <div>
                 <div className="flex items-center gap-3">
-                  <div className="text-lg font-semibold">Invoice #{inv.number}</div>
+                  <div className="text-lg font-semibold text-slate-900">Invoice #{inv.number}</div>
                   {statusChip(inv.status)}
                 </div>
-                <div className="text-sm text-gray-400">
+                <div className="text-sm text-slate-500">
                   {inv.client?.name || "Unknown client"}
                   {inv.project?.name ? ` · Project: ${inv.project.name}` : ""}
                   {" · Issued "}
@@ -279,10 +294,11 @@ export default function InvoicesPage() {
                   {" · Due "}
                   {new Date(inv.dueDate).toLocaleDateString()}
                 </div>
-                <ul className="mt-2 text-sm text-gray-300 list-disc pl-5">
+
+                <ul className="mt-2 list-disc pl-5 text-sm text-slate-600">
                   {inv.items.slice(0, 3).map((it) => (
                     <li key={it.id}>
-                      {it.description} — {it.quantity} × ${it.unitPrice} = ${it.total}
+                      {it.description} — {it.quantity} × {dollars(it.unitPrice)} = {dollars(it.total)}
                     </li>
                   ))}
                   {inv.items.length > 3 && <li>…and {inv.items.length - 3} more items</li>}
@@ -302,14 +318,14 @@ export default function InvoicesPage() {
                       if (r.ok) loadInvoices();
                       else alert(await r.text());
                     }}
-                    className="px-3 py-1.5 rounded border border-[#3f3f46] hover:bg-[#2a2b30]"
+                    className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
                     Record Payment
                   </button>
 
                   <button
                     onClick={() => downloadPdfFor(inv.id, inv.number)}
-                    className="px-3 py-1.5 rounded border border-[#3f3f46] hover:bg-[#2a2b30]"
+                    className="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     title="Download PDF of this invoice"
                   >
                     PDF
@@ -318,17 +334,17 @@ export default function InvoicesPage() {
               </div>
 
               <div className="text-right">
-                <div className="text-xs text-gray-400">Subtotal</div>
-                <div className="font-medium">{dollars(inv.subtotal)}</div>
-                <div className="text-xs text-gray-400 mt-1">Tax</div>
-                <div className="font-medium">{dollars(inv.tax)}</div>
-                <div className="text-xs text-gray-400 mt-1">Total</div>
-                <div className="text-xl font-semibold">{dollars(inv.total)}</div>
+                <div className="text-xs text-slate-500">Subtotal</div>
+                <div className="font-medium text-slate-900">{dollars(inv.subtotal)}</div>
+                <div className="mt-1 text-xs text-slate-500">Tax</div>
+                <div className="font-medium text-slate-900">{dollars(inv.tax)}</div>
+                <div className="mt-1 text-xs text-slate-500">Total</div>
+                <div className="text-xl font-semibold text-slate-900">{dollars(inv.total)}</div>
 
-                <div className="text-xs text-gray-400 mt-3">Paid</div>
-                <div className="font-medium">{dollars(inv.amountPaid ?? 0)}</div>
-                <div className="text-xs text-gray-400 mt-1">Balance</div>
-                <div className="text-xl font-semibold">{dollars(balance)}</div>
+                <div className="mt-3 text-xs text-slate-500">Paid</div>
+                <div className="font-medium text-slate-900">{dollars(inv.amountPaid ?? 0)}</div>
+                <div className="mt-1 text-xs text-slate-500">Balance</div>
+                <div className="text-xl font-semibold text-slate-900">{dollars(balance)}</div>
               </div>
             </div>
           );

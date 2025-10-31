@@ -20,10 +20,6 @@ export async function GET() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
-
-
     const [invoices, clients, projects, timeEntries, projectsExpanded] = await Promise.all([
       prisma.invoice.findMany({
         where: { userId },
@@ -55,6 +51,11 @@ export async function GET() {
 
     const isOpen = (s: string) => !["PAID", "VOID"].includes(s);
 
+    const totalPaid = invoices.reduce((sum, inv) => {
+      const paid = Number(inv.amountPaid ?? 0);
+      return sum + paid;
+    }, 0);
+
     const unpaidTotal = invoices.reduce((sum, inv) => {
       if (!isOpen(inv.status)) return sum;
       const paid = inv.amountPaid ?? 0;
@@ -67,13 +68,30 @@ export async function GET() {
       return !!due && due < now;
     }).length;
 
-    const thisMonthBilledTotal = invoices
-      .filter((inv) => inv.issueDate >= monthStart && inv.issueDate < nextMonthStart)
-      .reduce((s, inv) => s + Number(inv.total ?? 0), 0);
+    const invoiceTotalsByMonth = new Map<string, number>();
+    invoices.forEach((inv) => {
+      if (!inv.issueDate) return;
+      const issued = new Date(inv.issueDate);
+      const key = `${issued.getFullYear()}-${issued.getMonth()}`;
+      const running = invoiceTotalsByMonth.get(key) ?? 0;
+      invoiceTotalsByMonth.set(key, running + Number(inv.total ?? 0));
+    });
 
-    const lastMonthBilledTotal = invoices
-      .filter((inv) => inv.issueDate >= lastMonthStart && inv.issueDate < lastMonthEnd)
-      .reduce((s, inv) => s + Number(inv.total ?? 0), 0);
+    const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
+    const monthlyRevenue = Array.from({ length: 6 }, (_, idx) => {
+      const offset = 5 - idx;
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+      const key = `${firstOfMonth.getFullYear()}-${firstOfMonth.getMonth()}`;
+      const total = invoiceTotalsByMonth.get(key) ?? 0;
+      return {
+        label: monthFormatter.format(firstOfMonth),
+        year: firstOfMonth.getFullYear(),
+        total: +Number(total).toFixed(2),
+      };
+    });
+
+    const thisMonthBilledTotal = monthlyRevenue[monthlyRevenue.length - 1]?.total ?? 0;
+    const lastMonthBilledTotal = monthlyRevenue[monthlyRevenue.length - 2]?.total ?? 0;
 
     const minutesThisMonth = timeEntries.reduce((m, t) => {
       if (t.durationMin != null) return m + t.durationMin;
@@ -129,8 +147,10 @@ export async function GET() {
       unpaidTotal: +unpaidTotal.toFixed(2),
       overdueCount,
       thisMonthBilledTotal: +thisMonthBilledTotal.toFixed(2),
-      lastMonthBilledTotal: +lastMonthBilledTotal.toFixed(2), 
+      lastMonthBilledTotal: +lastMonthBilledTotal.toFixed(2),
       hoursTrackedThisMonth,
+      totalPaid: +totalPaid.toFixed(2),
+      monthlyRevenue,
       clients: clientSummaries,
       projects: projectList,
     });

@@ -7,13 +7,10 @@ type Params = { params: { id: string } };
 export async function POST(_req: Request, { params }: Params) {
   const clientId = params.id;
 
-  // 1️⃣ find client and check invoices
   const client = await prisma.client.findUnique({
     where: { id: clientId },
     include: {
-      invoices: {
-        select: { id: true, status: true },
-      },
+      invoices: { select: { id: true, status: true } },
     },
   });
 
@@ -21,7 +18,6 @@ export async function POST(_req: Request, { params }: Params) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  // 2️⃣ check if there are unpaid or partial invoices
   const unpaid = client.invoices.filter(
     (inv) => inv.status !== "PAID" && inv.status !== "VOID"
   );
@@ -37,24 +33,20 @@ export async function POST(_req: Request, { params }: Params) {
     );
   }
 
-  // 3️⃣ mark client + all their projects as archived
-  const result = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.project.updateMany({
       where: { clientId },
       data: { isArchived: true },
     });
 
-    const updated = await tx.client.update({
+    await tx.client.update({
       where: { id: clientId },
       data: { isArchived: true },
     });
-
-    return updated;
   });
 
-  return NextResponse.json({
-    ok: true,
-    clientId,
-    message: "Client archived successfully",
-  });
+  return NextResponse.json(
+    { ok: true, clientId, message: "Client archived successfully" },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }

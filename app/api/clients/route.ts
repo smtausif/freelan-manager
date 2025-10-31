@@ -5,30 +5,45 @@ import { prisma } from "@/lib/db";
 // ensure there is a dev user; create if missing
 async function ensureDevUserId() {
   const email = "demo@fcc.app";
-
-  // upsert needs a UNIQUE constraint on User.email
-  // prisma model should have: email String @unique
   const user = await prisma.user.upsert({
     where: { email },
     update: {},
     create: { email, name: "Demo User" },
   });
-
   return user.id;
 }
 
 export async function GET() {
   try {
     const userId = await ensureDevUserId();
+
     const clients = await prisma.client.findMany({
       where: { userId },
-      orderBy: { createdAt: "desc" }, // ok if Client.createdAt exists; else remove
-      select: { id: true, name: true, email: true, phone: true, company: true, notes: true },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        company: true,
+        notes: true,
+        createdAt: true,   // <-- critical for your chart
+        isArchived: true,
+      },
     });
-    return NextResponse.json(clients ?? []);
+
+    return new NextResponse(JSON.stringify(clients ?? []), {
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json",
+      },
+    });
   } catch (e) {
     console.error("GET /api/clients", e);
-    return NextResponse.json({ error: "Failed to load clients" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load clients" },
+      { status: 500 }
+    );
   }
 }
 
@@ -51,12 +66,27 @@ export async function POST(req: Request) {
         company: body?.company ?? null,
         notes: body?.notes ?? null,
       },
-      select: { id: true, name: true, email: true, phone: true, company: true, notes: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        company: true,
+        notes: true,
+        createdAt: true,   // <-- returned so UI can use it immediately
+        isArchived: true,
+      },
     });
 
-    return NextResponse.json(client, { status: 201 });
+    return new NextResponse(JSON.stringify(client), {
+      status: 201,
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (e) {
     console.error("POST /api/clients", e);
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create client" },
+      { status: 500 }
+    );
   }
 }

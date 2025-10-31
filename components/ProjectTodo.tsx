@@ -99,7 +99,9 @@ export default function ProjectTodo({ projectId }: { projectId: string }) {
         <select
           className="rounded bg-[#1a1a1a] border border-[#333] px-3 py-2 text-white"
           value={priority}
-          onChange={(e) => setPriority(e.target.value as any)}
+          onChange={(e) =>
+            setPriority(e.target.value as "LOW" | "MEDIUM" | "HIGH")
+          }
         >
           <option>LOW</option>
           <option>MEDIUM</option>

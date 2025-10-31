@@ -1,36 +1,34 @@
 // app/layout.tsx
 import "./globals.css";
-import Link from "next/link";
 import { ReactNode } from "react";
+import NavTabs from "@/components/NavTabs";
+// NEW
+import { Toaster } from "sonner";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gray-50 text-gray-900">
-        <div className="flex min-h-screen">
-          <aside className="w-64 bg-white border-r">
-            <div className="p-4 font-bold text-xl">TRACKwo</div>
-            <nav className="px-2 space-y-1">
-              {[
-                ["/dashboard", "Dashboard"],
-                ["/clients", "Clients"],
-                ["/projects", "Projects"],
-                ["/time", "Time"],
-                ["/invoices", "Invoices"],
-                ["/settings", "Settings"],
-              ].map(([href, label]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="block rounded px-3 py-2 hover:bg-gray-100"
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
-          </aside>
-          <main className="flex-1 p-6">{children}</main>
+      <body className="bg-[var(--background)] text-[var(--text)]">
+        <div className="min-h-screen">
+          <header className="border-b border-slate-200 bg-white">
+            <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-5">
+              <div className="text-2xl font-semibold tracking-tight text-slate-900">
+                TRACKwo
+              </div>
+              <NavTabs />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                N
+              </div>
+            </div>
+          </header>
+
+          <main className="mx-auto w-full max-w-6xl px-6 py-8">
+            {children}
+          </main>
         </div>
+
+        {/* ⬇️ NEW: global toast portal */}
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );

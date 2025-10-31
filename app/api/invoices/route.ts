@@ -12,7 +12,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const statusParam = searchParams.get("status");
     const allowed = ["DRAFT","SENT","PAID","OVERDUE","VOID","PARTIAL"] as const;
-    const status = allowed.includes(statusParam as any) ? (statusParam as typeof allowed[number]) : undefined;
+    type Status = typeof allowed[number];
+    const isStatus = (s: string | null): s is Status =>
+      !!s && (allowed as readonly string[]).includes(s);
+    const status = isStatus(statusParam) ? statusParam : undefined;
     const projectId = searchParams.get("projectId") ?? undefined;
 
     const invoices = await prisma.invoice.findMany({

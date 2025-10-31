@@ -3,13 +3,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/db";
 import { ensureDevUser } from "@/lib/ensureUser";
 
-async function getUser() {
-  return ensureDevUser();
+// Helpers
+function computeDue(issue: Date, terms?: string) {
+  const d = new Date(issue);
+  switch (terms) {
+    case "NET_7": d.setDate(d.getDate() + 7); break;
+    case "NET_15": d.setDate(d.getDate() + 15); break;
+    case "NET_30": d.setDate(d.getDate() + 30); break;
+    case "DUE_ON_RECEIPT":
+    default: /* same day */ break;
+  }
+  return d;
 }
 
-// Body: { projectId: string, start?: string, end?: string }
 export async function POST(req: Request) {
-  const user = await getUser();
+  const user = await ensureDevUser();
   const { projectId, start, end } = await req.json();
 
   if (!projectId) {
@@ -36,11 +44,14 @@ export async function POST(req: Request) {
     orderBy: { start: "asc" },
   });
 
+  // Build line items
   const items: { description: string; quantity: number; unitPrice: number; total: number }[] = [];
 
   if (project.billingType === "HOURLY") {
     const minutes = entries.reduce((s, e) => {
-      const dur = e.durationMin ?? (e.end ? Math.round((+new Date(e.end) - +new Date(e.start)) / 60000) : 0);
+      const dur =
+        e.durationMin ??
+        (e.end ? Math.round((+new Date(e.end) - +new Date(e.start)) / 60000) : 0);
       return s + Math.max(dur, 0);
     }, 0);
     const hours = minutes / 60;
@@ -66,29 +77,50 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Nothing to invoice for this project" }, { status: 400 });
   }
 
-  const last = await prisma.invoice.findFirst({
-    where: { userId: user.id },
-    orderBy: { number: "desc" },
-    select: { number: true },
-  });
-  const nextNumber = (last?.number ?? 0) + 1;
+  // Use UserSettings (currency, taxRate, terms, invoicePrefix/nextNumber)
+  const settings = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  const currency = settings?.currency ?? "USD";
+  const taxRate = Number(settings?.taxRate ?? 0);
+  const terms = settings?.terms ?? "NET_15";
+  const prefix = settings?.invoicePrefix ?? "";
+  const issueDate = new Date();
+  const dueDate = computeDue(issueDate, terms);
 
   const subtotal = items.reduce((s, i) => s + i.total, 0);
-  const taxRate = Number(user.taxRate ?? 0);
   const tax = parseFloat(((subtotal * taxRate) / 100).toFixed(2));
   const total = parseFloat((subtotal + tax).toFixed(2));
 
+  // Create invoice AND bump settings.nextNumber atomically
   const invoice = await prisma.$transaction(async (tx) => {
+    // Lock & bump nextNumber (fallback to max(number)+1 if missing)
+    let nextNumber: number;
+    if (settings) {
+      nextNumber = settings.nextNumber ?? 1;
+      await tx.userSettings.update({
+        where: { userId: user.id },
+        data: { nextNumber: nextNumber + 1 },
+      });
+    } else {
+      const last = await tx.invoice.findFirst({
+        where: { userId: user.id },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      });
+      nextNumber = (last?.number ?? 0) + 1;
+    }
+
     const inv = await tx.invoice.create({
       data: {
         userId: user.id,
         clientId: project.clientId,
         projectId: project.id,
-        number: nextNumber,
-        issueDate: new Date(),
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        currency: user.currency ?? "USD",
-        subtotal, tax, total,
+        number: nextNumber,       // store the raw number only
+        issueDate,
+        dueDate,
+        currency,
+        subtotal,
+        tax,
+        total,
         status: "DRAFT",
       },
     });
@@ -103,6 +135,7 @@ export async function POST(req: Request) {
       })),
     });
 
+    // mark entries billed (only for hourly)
     if (project.billingType === "HOURLY" && entries.length) {
       await tx.timeEntry.updateMany({
         where: { id: { in: entries.map((e) => e.id) } },
@@ -113,10 +146,14 @@ export async function POST(req: Request) {
     return inv;
   });
 
+  // Re-read with relations for client UI
   const full = await prisma.invoice.findUnique({
     where: { id: invoice.id },
     include: { client: true, project: true, items: true, timeEntries: true },
   });
 
-  return NextResponse.json(full, { status: 201 });
+  // Add a computed display number (not stored in DB)
+  const displayNumber = prefix ? `${prefix}${full!.number}` : String(full!.number);
+
+  return NextResponse.json({ ...full, displayNumber }, { status: 201 });
 }
