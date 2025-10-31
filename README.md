@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+TRACKwo — Freelancer Command Center
+==================================
 
-## Getting Started
+All‑in‑one freelancer hub built with Next.js 15: track time, manage clients and projects, create invoices (with PDFs), and monitor your business from a clean dashboard.
 
-First, run the development server:
+Key Features
+------------
+- Dashboard overview with:
+  - Six‑month revenue bar chart
+  - Donut chart of project status with hover details
+  - Stat cards for Due, Paid, Active Projects, and Hours
+- Clients and Projects management (archive, statuses, hand‑over)
+- Time tracking (live timer + manual entries) with per‑project summaries and CSV export
+- Invoicing with line items, payments, status workflow, and PDF generation
+- SQLite + Prisma schema, migrations, and seed data for quick local setup
 
+Tech Stack
+---------
+- Next.js 15 (App Router, Turbopack in dev)
+- React 19
+- Prisma 6.x with SQLite
+- Tailwind CSS 4
+- pdf-lib for PDF invoices
+
+Getting Started
+---------------
+
+Prerequisites
+- Node.js 20 LTS (or >=18.18)
+- npm (bundled with Node)
+
+Install and run (local dev)
 ```bash
+# 1) Install deps
+npm install
+
+# 2) Generate DB and seed example data
+npx prisma migrate dev
+npm run prisma:seed
+
+# 3) Start the dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Default demo data
+- A demo user is created during seeding: `demo@fcc.app`
+- Sample clients, projects, invoices, and time entries are included so the dashboard renders immediately.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Common Scripts
+--------------
+- `npm run dev` — start Next.js dev server (Turbopack)
+- `npm run build` — production build
+- `npm start` — start the built app
+- `npm run lint` — run ESLint
+- `npm run prisma:seed` — seed demo data
+- `npm run db:seed` — Prisma seed via `prisma db seed`
+- `npm run db:reset` — reset the local SQLite DB and reseed
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Project Structure
+-----------------
+- `app/` — routes, pages, and API endpoints (App Router)
+  - `app/dashboard/` — dashboard UI and charts
+  - `app/api/` — REST‑style API routes (clients, projects, time, invoices)
+- `components/` — shared React components (e.g., nav tabs, to‑do board)
+- `lib/` — Prisma client and helpers
+- `prisma/` — Prisma schema, migrations, and seed
+- `public/` — static assets
 
-## Learn More
+Troubleshooting
+---------------
+- Port already in use (3000): close the running dev server or `pkill -f "next dev"`
+- Prisma client issues: `npx prisma generate`
+- Reset DB: `npm run db:reset`
 
-To learn more about Next.js, take a look at the following resources:
+Contributing
+------------
+1) Create a feature branch: `git checkout -b feat/your-change`
+2) Run lint and dev locally: `npm run lint && npm run dev`
+3) Commit and push: `git commit -m "feat: describe change"` then `git push -u origin feat/your-change`
+4) Open a Pull Request on GitHub
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+License
+-------
+Private project. Do not distribute without permission.
