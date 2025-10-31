@@ -2,6 +2,8 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import NavTabs from "@/components/NavTabs";
+// NEW
+import { Toaster } from "sonner";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -19,8 +21,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+
+          <main className="mx-auto w-full max-w-6xl px-6 py-8">
+            {children}
+          </main>
         </div>
+
+        {/* ⬇️ NEW: global toast portal */}
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );

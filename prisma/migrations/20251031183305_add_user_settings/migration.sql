@@ -1,0 +1,40 @@
+-- CreateTable
+CREATE TABLE "UserSettings" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "taxRate" REAL NOT NULL DEFAULT 13,
+    "terms" TEXT NOT NULL DEFAULT 'NET_15',
+    "invoicePrefix" TEXT NOT NULL DEFAULT 'INV-',
+    "nextNumber" INTEGER NOT NULL DEFAULT 1001,
+    "invoiceNotes" TEXT NOT NULL DEFAULT 'Thank you for your business!',
+    "allowPartial" BOOLEAN NOT NULL DEFAULT true,
+    "rounding" TEXT NOT NULL DEFAULT 'NONE',
+    "minEntry" INTEGER NOT NULL DEFAULT 5,
+    "weekStartsOn" TEXT NOT NULL DEFAULT 'MON',
+    "dayStart" TEXT NOT NULL DEFAULT '09:00',
+    "defaultBilling" TEXT NOT NULL DEFAULT 'HOURLY',
+    "defaultRate" REAL NOT NULL DEFAULT 85,
+    "autoArchiveOnHandover" BOOLEAN NOT NULL DEFAULT true,
+    "nOverdue" BOOLEAN NOT NULL DEFAULT true,
+    "nPayment" BOOLEAN NOT NULL DEFAULT true,
+    "nProjectChange" BOOLEAN NOT NULL DEFAULT false,
+    "nWeeklySummary" BOOLEAN NOT NULL DEFAULT false,
+    "theme" TEXT NOT NULL DEFAULT 'LIGHT',
+    "accent" TEXT NOT NULL DEFAULT '#6d28d9',
+    "businessName" TEXT NOT NULL DEFAULT '',
+    "displayName" TEXT NOT NULL DEFAULT 'Demo User',
+    "email" TEXT NOT NULL DEFAULT 'demo@fcc.app',
+    "phone" TEXT NOT NULL DEFAULT '',
+    "address1" TEXT NOT NULL DEFAULT '',
+    "address2" TEXT NOT NULL DEFAULT '',
+    "city" TEXT NOT NULL DEFAULT '',
+    "country" TEXT NOT NULL DEFAULT '',
+    "logoUrl" TEXT NOT NULL DEFAULT '',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "UserSettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserSettings_userId_key" ON "UserSettings"("userId");

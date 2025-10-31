@@ -1,27 +1,55 @@
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import ProjectTodo from "@/components/ProjectTodo";
 
-export default async function ProjectDetail({ params }: { params: { id: string } }) {
-  const project = await prisma.project.findUnique({
-    where: { id: params.id },
-    include: { client: true },
-  });
+type Project = {
+  id: string;
+  name: string;
+  client?: { name?: string | null } | null;
+  status:
+    | "ACTIVE"
+    | "ON_HOLD"
+    | "COMPLETED"
+    | "HANDED_OVER"
+    | "CANCELLED"
+    | "CANCELLED_BY_CLIENT"
+    | "CANCELLED_BY_FREELANCER";
+  isArchived?: boolean;
+};
 
-  if (!project) return <div className="p-6">Project not found.</div>;
+export default function ProjectDetailPage() {
+  const { id } = useParams<{ id: string }>();   
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/projects", { cache: "no-store" });
+        const all = (await r.json()) as Project[];
+        setProject(all.find((x) => x.id === id) ?? null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
+
+  if (loading) return <div className="text-slate-600">Loading…</div>;
+  if (!project) return <div className="text-slate-600">Project not found.</div>;
 
   return (
     <div className="space-y-6">
-      <div className="rounded border bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold">{project.name}</h1>
-        <p className="text-gray-600 mt-1">
-          {project.client?.name ?? "—"} • {project.billingType}
-          {project.hourlyRate ? ` @ $${project.hourlyRate}/h` : ""}
-          {project.fixedFee ? ` • $${project.fixedFee}` : ""}
-        </p>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{project.name}</h1>
+        <div className="text-sm text-slate-500">
+          {project.client?.name ?? "No client"} • {project.status.replaceAll("_", " ")}
+          {project.isArchived ? " • archived" : ""}
+        </div>
       </div>
 
-      {/* To-Do list for this project */}
-      <ProjectTodo projectId={project.id} />
+      <ProjectTodo projectId={id} />
     </div>
   );
 }

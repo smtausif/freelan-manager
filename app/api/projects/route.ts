@@ -21,17 +21,21 @@ export async function GET() {
 export async function POST(req: Request) {
   const userId = await getUserId();
   const body = await req.json();
+  const st = await prisma.userSettings.findUnique({ where: { userId } });
+
   const project = await prisma.project.create({
     data: {
       userId,
       clientId: body.clientId,
       name: body.name,
-      billingType: body.billingType ?? "HOURLY",
-      hourlyRate: body.hourlyRate ?? null,
+      billingType: body.billingType ?? (st?.defaultBilling ?? "HOURLY"),
+      hourlyRate: body.hourlyRate ?? (st?.defaultRate ?? null),
       fixedFee: body.fixedFee ?? null,
       status: body.status ?? "ACTIVE",
     },
     include: { client: true },
   });
+
   return NextResponse.json(project, { status: 201 });
 }
+
