@@ -235,7 +235,7 @@ export default function InvoicesPage() {
         {(["ALL", "DRAFT", "SENT", "PAID", "OVERDUE", "VOID", "PARTIAL"] as const).map((s) => (
           <button
             key={s}
-            onClick={() => setFilter(s as any)}
+            onClick={() => setFilter(s)}
             className={`px-3 py-1.5 rounded border ${
               filter === s ? "bg-[#2a2b30] border-[#3f3f46]" : "bg-transparent border-[#3f3f46]"
             }`}

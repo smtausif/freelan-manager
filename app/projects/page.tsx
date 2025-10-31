@@ -40,7 +40,9 @@ export default function ProjectsPage() {
       fetch("/api/clients").then((r) => r.json()),
       fetch("/api/projects").then((r) => r.json()),
     ]);
-    setClients(c.map((x: any) => ({ id: x.id, name: x.name })));
+    setClients(
+      (c as Array<{ id: string; name: string }>).map((x) => ({ id: x.id, name: x.name }))
+    );
     setProjects(p);
   }
 
@@ -50,7 +52,13 @@ export default function ProjectsPage() {
 
   async function createProject(e: React.FormEvent) {
     e.preventDefault();
-    const body: any = {
+    const body: {
+      clientId: string;
+      name: string;
+      billingType: "HOURLY" | "FIXED";
+      hourlyRate?: number | null;
+      fixedFee?: number | null;
+    } = {
       clientId: form.clientId,
       name: form.name,
       billingType: form.billingType,

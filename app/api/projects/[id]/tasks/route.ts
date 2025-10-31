@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         projectId: params.id,
         title: body.title.trim(),
         notes: body.notes?.trim(),
-        priority: (body.priority as any) ?? "MEDIUM",
+        priority: body.priority ?? "MEDIUM",
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         order: (last?.order ?? 0) + 1,
       },

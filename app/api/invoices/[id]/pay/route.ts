@@ -1,6 +1,7 @@
 // app/api/invoices/[id]/pay/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/db";
+import type { InvoiceStatus } from "@prisma/client";
 
 type Params = { params: { id: string } };
 
@@ -25,14 +26,15 @@ export async function POST(req: Request, { params }: Params) {
     });
     const paid = Number(agg._sum.amount ?? 0);
 
-    const newStatus =
+    const newStatus: InvoiceStatus = (
       paid >= inv.total ? "PAID" :
       paid > 0 ? "PARTIAL" :
-      inv.status;
+      inv.status
+    ) as InvoiceStatus;
 
     await tx.invoice.update({
       where: { id: inv.id },
-      data: { amountPaid: paid, status: newStatus as any },
+      data: { amountPaid: paid, status: newStatus },
     });
   });
 

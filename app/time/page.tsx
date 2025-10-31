@@ -71,8 +71,8 @@ function rangeToParams(range: "THIS_MONTH" | "THIS_WEEK" | "ALL_TIME") {
   return { from: start.toISOString(), to: end.toISOString() };
 }
 const rangeQS = (range: "THIS_MONTH" | "THIS_WEEK" | "ALL_TIME") => {
-  const p = rangeToParams(range);
-  const qs = new URLSearchParams(p as any).toString();
+  const p = rangeToParams(range) as Record<string, string>;
+  const qs = new URLSearchParams(p).toString();
   return qs ? `?${qs}` : "";
 };
 
@@ -163,7 +163,13 @@ export default function TimePage() {
 
   const saveManual = async () => {
     if (!manual.projectId) return alert("Pick a project");
-    const payload: any = { projectId: manual.projectId, description: manual.desc };
+    const payload: {
+      projectId: string;
+      description?: string;
+      durationMin?: number;
+      start?: string;
+      end?: string;
+    } = { projectId: manual.projectId, description: manual.desc };
     if (manual.minutes) payload.durationMin = Number(manual.minutes);
     if (manual.start) payload.start = manual.start;
     if (manual.end) payload.end = manual.end;
@@ -397,7 +403,11 @@ export default function TimePage() {
           <h2 className="text-xl font-semibold">Project totals</h2>
           <select
             value={range}
-            onChange={(e) => setRange(e.target.value as any)}
+            onChange={(e) =>
+              setRange(
+                e.target.value as "THIS_WEEK" | "THIS_MONTH" | "ALL_TIME"
+              )
+            }
             className="bg-[#1b1b1b] border border-gray-600 rounded px-2 py-1 text-sm"
           >
             <option value="THIS_WEEK">This week</option>
@@ -524,7 +534,12 @@ export default function TimePage() {
                 type="number"
                 className="p-2 rounded bg-[#1b1b1b] border border-gray-600"
                 value={manual.minutes}
-                onChange={(e) => setManual((m) => ({ ...m, minutes: e.target.value as any }))}
+                onChange={(e) =>
+                  setManual((m) => ({
+                    ...m,
+                    minutes: e.target.value === "" ? "" : Number(e.target.value),
+                  }))
+                }
                 placeholder="Duration min (optional)"
               />
             </div>

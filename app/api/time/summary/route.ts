@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   const where = {
     userId,
     // only finished entries (keeps business totals stable)
-    NOT: { end: null as any },
+    end: { not: null },
     ...(from ? { start: { gte: new Date(from) } } : {}),
     ...(to ? { start: { lte: new Date(to) } } : {}),
   };
