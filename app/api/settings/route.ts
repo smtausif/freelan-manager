@@ -24,12 +24,22 @@ const ALLOWED_KEYS = new Set([
 export async function GET() {
   try {
     const userId = await ensureDevUserId();
-    let s = await prisma.userSettings.findUnique({ where: { userId } });
-    if (!s) {
-      // create row with Prisma defaults
-      s = await prisma.userSettings.create({ data: { userId } });
+
+    // read via relation (no prisma.userSettings)
+    let user = await (prisma as any).user.findUnique({
+      where: { id: userId },
+      include: { settings: true },              // if your relation is userSettings, rename both lines
+    });
+
+    if (!user?.settings) {
+      user = await (prisma as any).user.update({
+        where: { id: userId },
+        data: { settings: { create: {} } },
+        include: { settings: true },
+      });
     }
-    return NextResponse.json(s);
+
+    return NextResponse.json(user.settings);
   } catch (e) {
     console.error("GET /api/settings", e);
     return NextResponse.json({ error: "Failed to load settings" }, { status: 500 });
@@ -52,13 +62,21 @@ export async function PATCH(req: Request) {
       else data[k] = v;
     }
 
-    const updated = await prisma.userSettings.upsert({
-      where: { userId },
-      update: data,
-      create: { userId, ...data },
+    // upsert via relation (no prisma.userSettings)
+    const updatedUser = await (prisma as any).user.update({
+      where: { id: userId },
+      data: {
+        settings: {
+          upsert: {
+            update: data,
+            create: data,
+          },
+        },
+      },
+      include: { settings: true },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(updatedUser.settings);
   } catch (e) {
     console.error("PATCH /api/settings", e);
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });

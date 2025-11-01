@@ -1,6 +1,6 @@
 // app/api/time/summary/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "../../../../lib/db";
+import { prisma } from "@/lib/db";
 
 async function getUser() {
   // mirrors your other endpoints that use the demo email
@@ -15,12 +15,14 @@ export async function GET(req: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
-  // Load rounding preference from settings
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId: user.id },
-    select: { rounding: true },
+  //  Load rounding from the User -> settings relation (no prisma.userSettings)
+  const userWithSettings = await (prisma as any).user.findUnique({
+    where: { id: user.id },
+    include: { settings: true },               // if your client exposes userSettings instead, change both lines accordingly
   });
-  const rounding = settings?.rounding ?? "NONE";
+  const rounding: "NONE" | "NEAREST_5" | "NEAREST_15" =
+    userWithSettings?.settings?.rounding ?? "NONE";
+
   const round = (m: number) =>
     rounding === "NEAREST_5" ? Math.round(m / 5) * 5
     : rounding === "NEAREST_15" ? Math.round(m / 15) * 15
@@ -61,7 +63,9 @@ export async function GET(req: Request) {
         }
 
         const entryCount = entries.length;
-        const recentDescriptions = entries.slice(0, 3).map((e) => (e.description?.trim() || "No description"));
+        const recentDescriptions = entries
+          .slice(0, 3)
+          .map((e) => e.description?.trim() || "No description");
 
         const proj = await prisma.project.findUnique({
           where: { id: projectId! },
