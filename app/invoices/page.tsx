@@ -238,37 +238,45 @@ export default function InvoicesPage() {
       </form>
 
       {/* Filter + CSV */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-slate-500">Filter:</span>
-        {(["ALL", "DRAFT", "SENT", "PAID", "OVERDUE", "VOID", "PARTIAL"] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-              filter === s
-                ? "border-slate-300 bg-slate-50 text-slate-800"
-                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+<div className="flex flex-col gap-3 md:flex-row md:items-center">
+  <div className="flex items-center gap-2">
+    <span className="shrink-0 text-sm text-slate-500">Filter:</span>
 
-        <div className="flex-1" />
+    {/* make chips wrap on small screens and scroll smoothly if needed */}
+    <div className="flex flex-wrap gap-2 overflow-x-auto md:overflow-visible">
+      {(["ALL", "DRAFT", "SENT", "PAID", "OVERDUE", "VOID", "PARTIAL"] as const).map((s) => (
         <button
-          onClick={downloadCsv}
-          disabled={exporting || invoices.length === 0}
-          className={`rounded-full border border-slate-300 px-3 py-1.5 text-sm font-medium ${
-            exporting || invoices.length === 0
-              ? "cursor-not-allowed opacity-50"
-              : "bg-white text-slate-700 hover:bg-slate-50"
+          key={s}
+          onClick={() => setFilter(s)}
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+            filter === s
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
-          title={invoices.length === 0 ? "No invoices to export" : "Download CSV for this section"}
-          aria-busy={exporting}
         >
-          {exporting ? "Preparing..." : "Download CSV"}
+          {s}
         </button>
-      </div>
+      ))}
+    </div>
+  </div>
+
+  {/* push CSV right on md+, stack under chips on mobile */}
+  <div className="md:ml-auto">
+    <button
+      onClick={downloadCsv}
+      disabled={exporting || invoices.length === 0}
+      className={`w-full md:w-auto rounded-full border px-3 py-1.5 text-sm font-medium ${
+        exporting || invoices.length === 0
+          ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+      }`}
+      title={invoices.length === 0 ? "No invoices to export" : "Download CSV for this section"}
+      aria-busy={exporting}
+    >
+      {exporting ? "Preparing..." : "Download CSV"}
+    </button>
+  </div>
+</div>
 
       {/* List */}
       <div className="grid gap-3">
