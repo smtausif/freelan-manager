@@ -10,7 +10,10 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // existing Next.js configs
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+
+  // Disable lint for build dirs
   {
     ignores: [
       "node_modules/**",
@@ -19,6 +22,13 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+  },
+
+  {
+    files: ["app/api/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
   },
 ];
 

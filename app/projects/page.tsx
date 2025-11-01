@@ -24,11 +24,19 @@ type Project = {
   createdAt?: string;
 };
 
+type CreateProjectBody = {
+  name: string;
+  billingType: Project["billingType"];
+  clientId: string | null;
+  hourlyRate?: number;
+  fixedFee?: number;
+};
+
 function prettyBilling(p: Project) {
   if (p.billingType === "HOURLY") {
     const r = p.hourlyRate ?? 0;
     return `Hourly · $${Number(r).toFixed(2)}/hr`;
-  }
+    }
   const fee = p.fixedFee ?? 0;
   return `Fixed · $${Number(fee).toFixed(2)}`;
 }
@@ -86,11 +94,14 @@ export default function ProjectsPage() {
     const data = (await r.json()) as Project[];
     setProjects(data);
   }
+
   useEffect(() => {
     load();
     fetch("/api/clients")
       .then((r) => r.json())
       .then(setClients);
+    // we intentionally don't include load() in deps to avoid ref churn warnings here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
@@ -99,7 +110,13 @@ export default function ProjectsPage() {
       if (!showArchived && p.isArchived) return false;
       if (status !== "ALL" && p.status !== status) return false;
       if (!q) return true;
-      const hay = [p.name, p.client?.name ?? "", p.billingType, prettyBilling(p), p.status]
+      const hay = [
+        p.name,
+        p.client?.name ?? "",
+        p.billingType,
+        prettyBilling(p),
+        p.status,
+      ]
         .join(" ")
         .toLowerCase();
       return hay.includes(q);
@@ -109,13 +126,16 @@ export default function ProjectsPage() {
   async function createProject(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return alert("Project name required");
-    const body: any = {
+
+    const body: CreateProjectBody = {
       name: name.trim(),
       billingType,
       clientId: clientId || null,
     };
-    if (billingType === "HOURLY") body.hourlyRate = Number(hourlyRate || 0);
-    if (billingType === "FIXED") body.fixedFee = Number(fixedFee || 0);
+    if (billingType === "HOURLY")
+      body.hourlyRate = Number(hourlyRate || 0);
+    if (billingType === "FIXED")
+      body.fixedFee = Number(fixedFee || 0);
 
     const r = await fetch("/api/projects", {
       method: "POST",
@@ -290,54 +310,53 @@ export default function ProjectsPage() {
 
             {/* Buttons - border only */}
             <div className="flex flex-wrap items-center gap-2">
-  <button
-    onClick={() => setStatusFor(p.id, "ACTIVE")}
-    className="rounded-full border-2 border-emerald-400/80 px-3 py-1.5 text-sm font-medium text-emerald-300 bg-transparent hover:bg-emerald-950/40 hover:border-emerald-300 transition-colors duration-150"
-  >
-    Set Active
-  </button>
+              <button
+                onClick={() => setStatusFor(p.id, "ACTIVE")}
+                className="rounded-full border-2 border-emerald-400/80 px-3 py-1.5 text-sm font-medium text-emerald-300 bg-transparent hover:bg-emerald-950/40 hover:border-emerald-300 transition-colors duration-150"
+              >
+                Set Active
+              </button>
 
-  <button
-    onClick={() => setStatusFor(p.id, "ON_HOLD")}
-    className="rounded-full border-2 border-amber-400/80 px-3 py-1.5 text-sm font-medium text-amber-300 bg-transparent hover:bg-amber-950/40 hover:border-amber-300 transition-colors duration-150"
-  >
-    On Hold
-  </button>
+              <button
+                onClick={() => setStatusFor(p.id, "ON_HOLD")}
+                className="rounded-full border-2 border-amber-400/80 px-3 py-1.5 text-sm font-medium text-amber-300 bg-transparent hover:bg-amber-950/40 hover:border-amber-300 transition-colors duration-150"
+              >
+                On Hold
+              </button>
 
-  <button
-    onClick={() => setStatusFor(p.id, "COMPLETED")}
-    className="rounded-full border-2 border-blue-400/80 px-3 py-1.5 text-sm font-medium text-blue-300 bg-transparent hover:bg-blue-950/40 hover:border-blue-300 transition-colors duration-150"
-  >
-    Complete
-  </button>
+              <button
+                onClick={() => setStatusFor(p.id, "COMPLETED")}
+                className="rounded-full border-2 border-blue-400/80 px-3 py-1.5 text-sm font-medium text-blue-300 bg-transparent hover:bg-blue-950/40 hover:border-blue-300 transition-colors duration-150"
+              >
+                Complete
+              </button>
 
-  <button
-    onClick={() => setStatusFor(p.id, "HANDED_OVER")}
-    className="rounded-full border-2 border-violet-400/80 px-3 py-1.5 text-sm font-medium text-violet-300 bg-transparent hover:bg-violet-950/40 hover:border-violet-300 transition-colors duration-150"
-    title="Final; archives project"
-  >
-    Hand Over
-  </button>
+              <button
+                onClick={() => setStatusFor(p.id, "HANDED_OVER")}
+                className="rounded-full border-2 border-violet-400/80 px-3 py-1.5 text-sm font-medium text-violet-300 bg-transparent hover:bg-violet-950/40 hover:border-violet-300 transition-colors duration-150"
+                title="Final; archives project"
+              >
+                Hand Over
+              </button>
 
-  <div className="w-px self-stretch bg-slate-200" />
+              <div className="w-px self-stretch bg-slate-200" />
 
-  <button
-    onClick={() => cancelProject(p.id, "client")}
-    className="rounded-full border-2 border-rose-400/80 px-3 py-1.5 text-sm font-medium text-rose-300 bg-transparent hover:bg-rose-950/40 hover:border-rose-300 transition-colors duration-150"
-    title="Mark cancelled by client"
-  >
-    Cancel (Client)
-  </button>
+              <button
+                onClick={() => cancelProject(p.id, "client")}
+                className="rounded-full border-2 border-rose-400/80 px-3 py-1.5 text-sm font-medium text-rose-300 bg-transparent hover:bg-rose-950/40 hover:border-rose-300 transition-colors duration-150"
+                title="Mark cancelled by client"
+              >
+                Cancel (Client)
+              </button>
 
-  <button
-    onClick={() => cancelProject(p.id, "freelancer")}
-    className="rounded-full border-2 border-slate-400/80 px-3 py-1.5 text-sm font-medium text-slate-300 bg-transparent hover:bg-slate-950/40 hover:border-slate-300 transition-colors duration-150"
-    title="Void unpaid invoices, archive"
-  >
-    Cancel (You)
-  </button>
-</div>
-
+              <button
+                onClick={() => cancelProject(p.id, "freelancer")}
+                className="rounded-full border-2 border-slate-400/80 px-3 py-1.5 text-sm font-medium text-slate-300 bg-transparent hover:bg-slate-950/40 hover:border-slate-300 transition-colors duration-150"
+                title="Void unpaid invoices, archive"
+              >
+                Cancel (You)
+              </button>
+            </div>
           </div>
         ))}
       </div>
