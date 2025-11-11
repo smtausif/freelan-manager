@@ -1,21 +1,24 @@
 // app/api/time/active/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/db";
-
-async function getUserId() {
-  const u = await prisma.user.findFirst({ where: { email: "demo@fcc.app" } });
-  if (!u) throw new Error("Demo user not found");
-  return u.id;
-}
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 // GET /api/time/active -> { active: TimeEntry | null }
 export async function GET() {
-  const userId = await getUserId();
+  try {
+    const userId = await requireUserId();
 
-  const active = await prisma.timeEntry.findFirst({
-    where: { userId, end: null },
-    include: { project: { include: { client: true } } },
-  });
+    const active = await prisma.timeEntry.findFirst({
+      where: { userId, end: null },
+      include: { project: { include: { client: true } } },
+    });
 
-  return NextResponse.json({ active: active ?? null });
+    return NextResponse.json({ active: active ?? null });
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
+    console.error("GET /api/time/active", e);
+    return NextResponse.json({ error: "Failed to load active timer" }, { status: 500 });
+  }
 }

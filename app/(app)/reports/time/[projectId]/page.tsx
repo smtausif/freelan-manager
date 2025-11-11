@@ -27,8 +27,8 @@ function fmtMin(min?: number | null) {
 }
 
 // Build an absolute base URL for server-side fetches
-function getBaseUrl() {
-  const h = headers();
+async function getBaseUrl() {
+  const h = await headers();
   const proto =
     h.get("x-forwarded-proto") ??
     (process.env.NODE_ENV === "production" ? "https" : "http");
@@ -51,7 +51,7 @@ export default async function ProjectTimeReport({
   if (searchParams.from) qs.set("from", searchParams.from);
   if (searchParams.to) qs.set("to", searchParams.to);
 
-  const base = getBaseUrl();
+  const base = await getBaseUrl();
   const url = `${base}/api/time/by-project/${params.projectId}${
     qs.toString() ? `?${qs.toString()}` : ""
   }`;

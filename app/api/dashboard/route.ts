@@ -1,20 +1,11 @@
 // app/api/dashboard/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-async function ensureDevUserId() {
-  const email = "demo@fcc.app";
-  const u = await prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: { email, name: "Demo User" },
-  });
-  return u.id;
-}
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 export async function GET() {
   try {
-    const userId = await ensureDevUserId();
+    const userId = await requireUserId();
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -155,6 +146,9 @@ export async function GET() {
       projects: projectList,
     });
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     console.error("GET /api/dashboard error:", e);
     return NextResponse.json({ error: "Failed to load dashboard" }, { status: 500 });
   }

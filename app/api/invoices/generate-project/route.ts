@@ -1,7 +1,7 @@
 // app/api/invoices/generate-project/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { ensureDevUser } from "@/lib/ensureUser";
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 function computeDue(issue: Date, terms?: string) {
   const d = new Date(issue);
@@ -30,21 +30,29 @@ type GenerateProjectBody = {
 };
 
 export async function POST(req: NextRequest) {
-  const user = await ensureDevUser(); // replace with real auth
-  const { projectId, start, end } = (await req.json()) as GenerateProjectBody;
+  try {
+    const userId = await requireUserId();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { settings: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    const { projectId, start, end } = (await req.json()) as GenerateProjectBody;
 
-  if (!projectId) {
-    return NextResponse.json({ error: "projectId is required" }, { status: 400 });
-  }
+    if (!projectId) {
+      return NextResponse.json({ error: "projectId is required" }, { status: 400 });
+    }
 
   // project id is unique, so use findUnique
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: { client: true },
   });
-  if (!project || project.userId !== user.id) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
+    if (!project || project.userId !== user.id) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
 
   const startDate = start ? new Date(start) : undefined;
   const endDate = end ? new Date(end) : undefined;
@@ -102,11 +110,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nothing to invoice for this project" }, { status: 400 });
   }
 
-  const userWithSettings = await (prisma as any).user.findUnique({
-    where: { id: user.id },
-    include: { settings: true },
-  });
-  const settings = userWithSettings?.settings ?? null;
+  const settings = user.settings ?? null;
 
   const currency = settings?.currency ?? "USD";
   const taxRate = Number(settings?.taxRate ?? 0);
@@ -121,12 +125,12 @@ export async function POST(req: NextRequest) {
   const total = parseFloat((subtotal + tax).toFixed(2));
 
   // Create invoice and bump nextNumber atomically
-  const invoice = await prisma.$transaction(async (tx) => {
+    const invoice = await prisma.$transaction(async (tx) => {
     let nextNumber: number;
 
     if (settings) {
       nextNumber = settings.nextNumber ?? 1;
-      await (tx as any).user.update({
+      await tx.user.update({
         where: { id: user.id },
         data: {
           settings: {
@@ -182,11 +186,18 @@ export async function POST(req: NextRequest) {
     return inv;
   });
 
-  const full = await prisma.invoice.findUnique({
-    where: { id: invoice.id },
-    include: { client: true, project: true, items: true, timeEntries: true },
-  });
+    const full = await prisma.invoice.findUnique({
+      where: { id: invoice.id },
+      include: { client: true, project: true, items: true, timeEntries: true },
+    });
 
-  const displayNumber = prefix ? `${prefix}${full!.number}` : String(full!.number);
-  return NextResponse.json({ ...full, displayNumber }, { status: 201 });
+    const displayNumber = prefix ? `${prefix}${full!.number}` : String(full!.number);
+    return NextResponse.json({ ...full, displayNumber }, { status: 201 });
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
+    console.error("POST /api/invoices/generate-project", e);
+    return NextResponse.json({ error: "Failed to generate invoice" }, { status: 500 });
+  }
 }

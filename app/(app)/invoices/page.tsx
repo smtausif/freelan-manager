@@ -1,7 +1,7 @@
 // app/invoices/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Client = { id: string; name: string };
 type Project = { id: string; name: string; clientId: string };
@@ -21,6 +21,27 @@ type Invoice = {
   payments: { id: string; amount: number; paidAt: string }[];
 };
 
+function dollars(n: number) {
+  return `$${n.toFixed(2)}`;
+}
+
+async function downloadPdfFor(invId: string, invNumber: number) {
+  const res = await fetch(`/api/invoices/${invId}/pdf`);
+  if (!res.ok) {
+    alert("Failed to generate PDF");
+    return;
+  }
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = `invoice_${invNumber}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
+}
+
 export default function InvoicesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -36,7 +57,7 @@ export default function InvoicesPage() {
   // UI niceties
   const [exporting, setExporting] = useState(false);
 
-  async function loadInvoices() {
+  const loadInvoices = useCallback(async () => {
     const url = filter === "ALL" ? "/api/invoices" : `/api/invoices?status=${filter}`;
     const res = await fetch(url);
     if (!res.ok) {
@@ -45,7 +66,7 @@ export default function InvoicesPage() {
       return;
     }
     setInvoices(await res.json());
-  }
+  }, [filter]);
 
   useEffect(() => {
     fetch("/api/clients").then((r) => r.json()).then(setClients);
@@ -53,7 +74,7 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     loadInvoices();
-  }, [filter]);
+  }, [loadInvoices]);
 
   // when client changes, show only their projects
   useEffect(() => {
@@ -120,10 +141,6 @@ export default function InvoicesPage() {
     return <span className={`text-xs px-2 py-1 rounded-full ${map[s]}`}>{label}</span>;
   };
 
-  function dollars(n: number) {
-    return `$${n.toFixed(2)}`;
-  }
-
   // Download CSV for the current section/filter
   async function downloadCsv() {
     try {
@@ -151,24 +168,6 @@ export default function InvoicesPage() {
     } finally {
       setExporting(false);
     }
-  }
-
-  // Download PDF for a specific invoice
-  async function downloadPdfFor(invId: string, invNumber: number) {
-    const res = await fetch(`/api/invoices/${invId}/pdf`);
-    if (!res.ok) {
-      alert("Failed to generate PDF");
-      return;
-    }
-    const blob = await res.blob();
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = href;
-    a.download = `invoice_${invNumber}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(href);
   }
 
   return (

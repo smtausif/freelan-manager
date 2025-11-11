@@ -1,16 +1,7 @@
 // app/api/settings/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-async function ensureDevUserId() {
-  const email = "demo@fcc.app";
-  const u = await prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: { email, name: "Demo User" },
-  });
-  return u.id;
-}
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 const ALLOWED_KEYS = new Set([
   "currency","taxRate","terms","invoicePrefix","nextNumber","invoiceNotes","allowPartial",
@@ -23,16 +14,16 @@ const ALLOWED_KEYS = new Set([
 
 export async function GET() {
   try {
-    const userId = await ensureDevUserId();
+    const userId = await requireUserId();
 
     // read via relation (no prisma.userSettings)
-    let user = await (prisma as any).user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id: userId },
       include: { settings: true },              // if your relation is userSettings, rename both lines
     });
 
     if (!user?.settings) {
-      user = await (prisma as any).user.update({
+      user = await prisma.user.update({
         where: { id: userId },
         data: { settings: { create: {} } },
         include: { settings: true },
@@ -41,6 +32,9 @@ export async function GET() {
 
     return NextResponse.json(user.settings);
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     console.error("GET /api/settings", e);
     return NextResponse.json({ error: "Failed to load settings" }, { status: 500 });
   }
@@ -48,7 +42,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    const userId = await ensureDevUserId();
+    const userId = await requireUserId();
     const raw = await req.json().catch(() => ({} as Record<string, unknown>));
 
     // whitelist & light coercion
@@ -63,7 +57,7 @@ export async function PATCH(req: Request) {
     }
 
     // upsert via relation (no prisma.userSettings)
-    const updatedUser = await (prisma as any).user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         settings: {
@@ -78,6 +72,9 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json(updatedUser.settings);
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     console.error("PATCH /api/settings", e);
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
   }

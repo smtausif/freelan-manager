@@ -1,7 +1,7 @@
 // app/api/invoices/export/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { ensureDevUser } from "@/lib/ensureUser";
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 const ALLOWED = ["DRAFT","SENT","PAID","OVERDUE","VOID","PARTIAL"] as const;
 type Allowed = typeof ALLOWED[number];
@@ -16,7 +16,7 @@ function q(v: unknown) {
 
 export async function GET(req: Request) {
   try {
-    const user = await ensureDevUser();
+    const userId = await requireUserId();
     const { searchParams } = new URL(req.url);
     const statusParam = searchParams.get("status");
     const status: Allowed | undefined = ALLOWED.includes(statusParam as Allowed)
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
 
     const invoices = await prisma.invoice.findMany({
       where: {
-        userId: user.id,
+        userId,
         ...(status ? { status } : {}),
       },
       include: { client: true, project: true, payments: true, items: true },
@@ -90,6 +90,9 @@ export async function GET(req: Request) {
       },
     });
   } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("GET /api/invoices/export error:", err);
     return NextResponse.json({ error: "Failed to export invoices" }, { status: 500 });
   }

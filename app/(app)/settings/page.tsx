@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 /** Backed by /api/settings (PUT/GET). Only fields we actually use. */
 type Settings = {
@@ -33,13 +34,24 @@ type Settings = {
   theme: "LIGHT" | "DARK" | "SYSTEM";
 };
 
-const CURRENCIES = ["USD", "CAD", "EUR", "GBP"];
+type Selectable<T extends string> = T | "";
+type SettingsFormState = Omit<
+  Settings,
+  "currency" | "terms" | "rounding" | "defaultBilling"
+> & {
+  currency: Selectable<Settings["currency"]>;
+  terms: Selectable<Settings["terms"]>;
+  rounding: Selectable<Settings["rounding"]>;
+  defaultBilling: Selectable<Settings["defaultBilling"]>;
+};
+
+const CURRENCIES = ["USD", "CAD", "EUR", "GBP"] as const;
 const TERMS: Settings["terms"][] = ["NET_7", "NET_15", "NET_30"];
 const ROUNDING: Settings["rounding"][] = ["NONE", "NEAREST_5", "NEAREST_15"];
-const THEMES: Settings["theme"][] = ["LIGHT", "DARK", "SYSTEM"]; // not shown, kept for payload compatibility
 
 export default function SettingsPage() {
-  const [s, setS] = useState<Settings>({
+  const router = useRouter();
+  const [s, setS] = useState<SettingsFormState>({
     businessName: "",
     displayName: "",
     email: "",
@@ -49,13 +61,13 @@ export default function SettingsPage() {
     city: "",
     country: "",
 
-    currency: "USD",
+    currency: "",
     taxRate: 13,
-    terms: "NET_15",
+    terms: "",
     invoicePrefix: "INV-",
 
-    rounding: "NONE",
-    defaultBilling: "HOURLY",
+    rounding: "",
+    defaultBilling: "",
     defaultRate: 85,
 
     notifyInvoiceOverdue: true,
@@ -66,24 +78,34 @@ export default function SettingsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     (async () => {
       const r = await fetch("/api/settings", { cache: "no-store" });
       if (r.ok) {
         const data = await r.json();
-        setS((prev) => ({ ...prev, ...data, theme: "LIGHT" })); // force LIGHT locally
+        setS((prev) => ({
+          ...prev,
+          ...data,
+          theme: "LIGHT",
+        })); // force LIGHT locally
       }
       setLoading(false);
     })();
   }, []);
 
-  const set = <K extends keyof Settings>(k: K, v: Settings[K]) =>
+  const set = <K extends keyof SettingsFormState>(k: K, v: SettingsFormState[K]) =>
     setS((p) => ({ ...p, [k]: v }));
 
   async function save() {
     setSaving(true);
     try {
+      if (!s.currency || !s.terms || !s.rounding || !s.defaultBilling) {
+        alert("Please select values for currency, payment terms, rounding, and default billing.");
+        setSaving(false);
+        return;
+      }
       const r = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -93,6 +115,24 @@ export default function SettingsPage() {
       if (!r.ok) alert(await r.text());
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteAccount() {
+    if (!confirm("This will permanently remove your account and all saved data. Continue?")) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/auth/delete-account", { method: "DELETE" });
+      if (!res.ok) {
+        alert(await res.text());
+        return;
+      }
+      router.replace("/");
+      router.refresh();
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -125,6 +165,7 @@ export default function SettingsPage() {
               value={s.currency}
               onChange={(v)=>set("currency", v as Settings["currency"])}
               options={CURRENCIES}
+              placeholder="Select"
             />
             <NumberField
               label="Tax rate (%)"
@@ -137,6 +178,7 @@ export default function SettingsPage() {
               onChange={(v)=>set("terms", v as Settings["terms"])}
               options={TERMS}
               mapLabel={(t)=>String(t).replace("_"," ")}
+              placeholder="Select"
             />
             <Field
               label="Invoice prefix"
@@ -156,12 +198,14 @@ export default function SettingsPage() {
               onChange={(v)=>set("rounding", v as Settings["rounding"])}
               options={ROUNDING}
               mapLabel={(r)=>String(r).replace("_"," ")}
+              placeholder="Select"
             />
             <Select
               label="Default billing"
               value={s.defaultBilling}
               onChange={(v)=>set("defaultBilling", v as Settings["defaultBilling"])}
               options={["HOURLY","FIXED"]}
+              placeholder="Select"
             />
             <NumberField
               label="Default hourly rate"
@@ -184,6 +228,22 @@ export default function SettingsPage() {
               checked={s.notifyProjectStatusChanged}
               onChange={(v)=>set("notifyProjectStatusChanged", v)}
             />
+          </div>
+        </Card>
+
+        <Card title="Danger zone">
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Permanently delete your account and all clients, projects, invoices, and time entries.
+              This action cannot be undone.
+            </p>
+            <button
+              onClick={deleteAccount}
+              disabled={deleting}
+              className="w-full rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50 md:w-auto"
+            >
+              {deleting ? "Deleting…" : "Delete account"}
+            </button>
           </div>
         </Card>
 
@@ -250,21 +310,27 @@ function NumberField(props: { label: string; value: number; onChange: (v: number
 
 function Select<T extends string>(props: {
   label: string;
-  value: T;
+  value: T | "";
   onChange: (v: T)=>void;
   options: readonly T[] | string[];
   mapLabel?: (v: string)=>string;
+  placeholder?: string;
 }) {
-  const { label, value, onChange, options, mapLabel } = props;
+  const { label, value, onChange, options, mapLabel, placeholder } = props;
   return (
     <label className="block">
       <div className="mb-1 text-xs text-slate-600">{label}</div>
       <select
         className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-2
                    text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/15"
-        value={value}
+        value={value ?? ""}
         onChange={(e)=>onChange(e.target.value as T)}
       >
+        {placeholder ? (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        ) : null}
         {options.map((o) => (
           <option key={String(o)} value={String(o)}>
             {mapLabel ? mapLabel(String(o)) : String(o)}

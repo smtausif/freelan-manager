@@ -1,13 +1,12 @@
 // app/api/invoices/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { ensureDevUser } from "@/lib/ensureUser"; 
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 // GET /api/invoices?status=DRAFT|SENT|PAID|OVERDUE|VOID|PARTIAL&projectId=...
 export async function GET(req: Request) {
   try {
-    const user = await ensureDevUser();       // ← ensures demo user exists (with taxRate if you set it there)
-    const userId = user.id;
+    const userId = await requireUserId();
 
     const { searchParams } = new URL(req.url);
     const statusParam = searchParams.get("status");
@@ -30,6 +29,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json(invoices ?? []);
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     console.error("GET /api/invoices error:", e);
     return NextResponse.json({ error: "Failed to load invoices" }, { status: 500 });
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Client = { id: string; name: string };
 type Project = {
@@ -44,10 +44,10 @@ function prettyBilling(p: Project) {
 function StatusBadge({
   status,
   archived,
-}: {
+}: Readonly<{
   status: Project["status"];
   archived?: boolean;
-}) {
+}>) {
   const map: Record<Project["status"], string> = {
     ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
     ON_HOLD: "bg-amber-50 text-amber-700 border-amber-200",
@@ -89,20 +89,47 @@ export default function ProjectsPage() {
 
   const [clients, setClients] = useState<Client[]>([]);
 
-  async function load() {
-    const r = await fetch("/api/projects", { cache: "no-store" });
-    const data = (await r.json()) as Project[];
-    setProjects(data);
-  }
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch("/api/projects", { cache: "no-store" });
+      if (!r.ok) {
+        console.error("Failed to load projects", r.status, r.statusText);
+        setProjects([]);
+        return;
+      }
+      const text = await r.text();
+      if (!text.trim()) {
+        setProjects([]);
+        return;
+      }
+      const data = JSON.parse(text) as Project[];
+      setProjects(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error loading projects", err);
+      setProjects([]);
+    }
+  }, []);
+
+  const loadClients = useCallback(async () => {
+    try {
+      const res = await fetch("/api/clients", { cache: "no-store" });
+      if (!res.ok) {
+        console.error("Failed to load clients", res.status, res.statusText);
+        setClients([]);
+        return;
+      }
+      const list = (await res.json()) as Client[];
+      setClients(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Error loading clients", err);
+      setClients([]);
+    }
+  }, []);
 
   useEffect(() => {
     load();
-    fetch("/api/clients")
-      .then((r) => r.json())
-      .then(setClients);
-    // we intentionally don't include load() in deps to avoid ref churn warnings here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    loadClients();
+  }, [load, loadClients]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -187,6 +214,7 @@ export default function ProjectsPage() {
             placeholder="Search projects, clients…"
             className="min-w-[260px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm"
           />
+
           <select
             value={status}
             onChange={(e) =>

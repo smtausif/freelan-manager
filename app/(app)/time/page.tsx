@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 type Project = { id: string; name: string; client: { name: string } | null };
 type Entry = {
@@ -101,24 +101,25 @@ export default function TimePage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const isTracking = !!active;
-  const startTime = active ? new Date(active.start) : null;
 
-  async function loadEntries() {
+  const loadEntries = useCallback(async () => {
     const res = await fetch("/api/time?limit=200");
     const data = await res.json();
     setEntries(data);
-  }
-  async function loadTotals() {
+  }, []);
+
+  const loadTotals = useCallback(async () => {
     const qs = rangeQS(range);
     const res = await fetch(`/api/time/summary${qs}`);
     const data = await res.json();
     setTotals(data);
-  }
-  async function loadActive() {
+  }, [range]);
+
+  const loadActive = useCallback(async () => {
     const res = await fetch("/api/time/active", { cache: "no-store" });
     const data = await res.json();
     setActive(data.active);
-  }
+  }, []);
 
   useEffect(() => {
     fetch("/api/projects").then((r) => r.json()).then(setProjects);
@@ -129,11 +130,11 @@ export default function TimePage() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, []);
+  }, [loadEntries, loadActive]);
 
   useEffect(() => {
     loadTotals();
-  }, [range]);
+  }, [loadTotals]);
 
   const startTimer = async (pid?: string, desc?: string) => {
     const usePid = pid ?? projectId;
@@ -181,10 +182,11 @@ export default function TimePage() {
   };
 
   const runningLabel = useMemo(() => {
-    if (!isTracking || !startTime) return null;
-    const mins = Math.max(1, Math.round((Date.now() - startTime.getTime()) / 60000));
+    if (!isTracking || !active) return null;
+    const start = new Date(active.start);
+    const mins = Math.max(1, Math.round((Date.now() - start.getTime()) / 60000));
     return fmt(mins);
-  }, [isTracking, startTime]);
+  }, [isTracking, active]);
 
   // filters
   const filtered = useMemo(() => {

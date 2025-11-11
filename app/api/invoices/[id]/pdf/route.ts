@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { PDFFont, RGB } from "pdf-lib";
 import type { Prisma } from "@prisma/client";
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 type RouteParams = { id: string };
 
@@ -136,24 +137,32 @@ export async function GET(
 ) {
   // await the params per Next.js 15 requirement
   const { id } = await ctx.params;
+  try {
+    const userId = await requireUserId();
+    const inv = await prisma.invoice.findFirst({
+      where: { id, userId },
+      include: { client: true, project: true, items: true, user: true },
+    });
+    if (!inv) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    }
 
-  const inv = await prisma.invoice.findUnique({
-    where: { id },
-    include: { client: true, project: true, items: true, user: true },
-  });
-  if (!inv) {
-    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    const pdf = await buildPdf(inv);
+
+    return new NextResponse(pdf, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="invoice_${inv.number}.pdf"`,
+        "Content-Length": String(pdf.length),
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
+    console.error("GET /api/invoices/[id]/pdf", e);
+    return NextResponse.json({ error: "Failed to generate PDF" }, { status: 500 });
   }
-
-  const pdf = await buildPdf(inv);
-
-  return new NextResponse(pdf, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice_${inv.number}.pdf"`,
-      "Content-Length": String(pdf.length),
-      "Cache-Control": "no-store",
-    },
-  });
 }

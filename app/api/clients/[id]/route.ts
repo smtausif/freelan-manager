@@ -1,6 +1,7 @@
 // app/api/clients/[id]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 type Params = { params: { id: string } };
 
@@ -21,7 +22,10 @@ function pickAllowed(body: any) {
 
 export async function GET(_req: Request, { params }: Params) {
   try {
-    const client = await prisma.client.findUnique({ where: { id: params.id } });
+    const userId = await requireUserId();
+    const client = await prisma.client.findFirst({
+      where: { id: params.id, userId },
+    });
     if (!client) {
       return new NextResponse("Not found", { status: 404 });
     }
@@ -29,12 +33,16 @@ export async function GET(_req: Request, { params }: Params) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (e: any) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     return new NextResponse(e?.message || "Server error", { status: 500 });
   }
 }
 
 export async function PATCH(req: Request, { params }: Params) {
   try {
+    const userId = await requireUserId();
     const raw = await req.json();
     const data = pickAllowed(raw);
 
@@ -46,8 +54,15 @@ export async function PATCH(req: Request, { params }: Params) {
       return new NextResponse("No valid fields", { status: 400 });
     }
 
+    const existing = await prisma.client.findFirst({
+      where: { id: params.id, userId },
+    });
+    if (!existing) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+
     const updated = await prisma.client.update({
-      where: { id: params.id },
+      where: { id: existing.id },
       data,
     });
 
@@ -55,6 +70,9 @@ export async function PATCH(req: Request, { params }: Params) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (e: any) {
+    if (e instanceof UnauthorizedError) {
+      return new NextResponse(e.message, { status: e.status });
+    }
     if (e?.code === "P2025") {
       return new NextResponse("Not found", { status: 404 });
     }
@@ -64,11 +82,22 @@ export async function PATCH(req: Request, { params }: Params) {
 
 export async function DELETE(_req: Request, { params }: Params) {
   try {
-    await prisma.client.delete({ where: { id: params.id } });
+    const userId = await requireUserId();
+    const existing = await prisma.client.findFirst({
+      where: { id: params.id, userId },
+    });
+    if (!existing) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+
+    await prisma.client.delete({ where: { id: existing.id } });
     return NextResponse.json({ ok: true }, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (e: any) {
+    if (e instanceof UnauthorizedError) {
+      return new NextResponse(e.message, { status: e.status });
+    }
     if (e?.code === "P2025") {
       return new NextResponse("Not found", { status: 404 });
     }

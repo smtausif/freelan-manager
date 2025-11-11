@@ -1,21 +1,11 @@
 // app/api/clients/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-// ensure there is a dev user; create if missing
-async function ensureDevUserId() {
-  const email = "demo@fcc.app";
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: { email, name: "Demo User" },
-  });
-  return user.id;
-}
+import { requireUserId, UnauthorizedError } from "@/lib/auth/requireUser";
 
 export async function GET() {
   try {
-    const userId = await ensureDevUserId();
+    const userId = await requireUserId();
 
     const clients = await prisma.client.findMany({
       where: { userId },
@@ -39,6 +29,9 @@ export async function GET() {
       },
     });
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     console.error("GET /api/clients", e);
     return NextResponse.json(
       { error: "Failed to load clients" },
@@ -49,7 +42,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const userId = await ensureDevUserId();
+    const userId = await requireUserId();
     const body = await req.json();
 
     const name = (body?.name ?? "").trim();
@@ -83,6 +76,9 @@ export async function POST(req: Request) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      return NextResponse.json({ error: e.message }, { status: e.status });
+    }
     console.error("POST /api/clients", e);
     return NextResponse.json(
       { error: "Failed to create client" },
