@@ -13,9 +13,12 @@
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.18.0",
+    "@lucia-auth/adapter-prisma": "^4.0.1",
+    "@prisma/client": "^6.19.0",
     "framer-motion": "^12.23.24",
+    "lucia": "^3.2.2",
     "next": "15.5.5",
+    "oslo": "^1.2.1",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.2",
     "react": "19.1.0",
