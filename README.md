@@ -1,86 +1,98 @@
-TRACKwo — Freelancer Command Center
-==================================
+# TRACKwo — Freelancer Command Center
 
-All‑in‑one freelancer hub built with Next.js 15: track time, manage clients and projects, create invoices (with PDFs), and monitor your business from a clean dashboard.
+Modern freelancers need one cockpit for tracking time, managing clients, shipping invoices, and understanding runway. TRACKwo stitches those workflows together on top of Next.js 15 and Prisma so you can get productive fast without sacrificing code quality.
 
-Key Features
-------------
-- Dashboard overview with:
-  - Six‑month revenue bar chart
-  - Donut chart of project status with hover details
-  - Stat cards for Due, Paid, Active Projects, and Hours
-- Clients and Projects management (archive, statuses, hand‑over)
-- Time tracking (live timer + manual entries) with per‑project summaries and CSV export
-- Invoicing with line items, payments, status workflow, and PDF generation
-- SQLite + Prisma schema, migrations, and seed data for quick local setup
+## Features
 
-Tech Stack
----------
-- Next.js 15 (App Router, Turbopack in dev)
+- Insightful dashboard with six‑month revenue charting, status donuts, and KPI cards
+- CRM‑light client/project management including archiving, hand‑off, and task boards
+- Real‑time and manual time tracking plus CSV exports and per‑project rollups
+- Invoice generation with line items, partial payments, PDF exports, and status automation
+- Lucia‑powered authentication with email/password login, signup, and password reset
+- SQLite + Prisma schema, migrations, and seed data for reproducible local environments
+
+## Tech Stack
+
+- Next.js 15 (App Router + Turbopack dev server)
 - React 19
-- Prisma 6.x with SQLite
+- Prisma 6 with SQLite (switchable to PostgreSQL)
 - Tailwind CSS 4
-- pdf-lib for PDF invoices
+- pdf-lib for server‑side invoice PDFs
 
-Getting Started
----------------
+## Getting Started
 
-Prerequisites
-- Node.js 20 LTS (or >=18.18)
-- npm (bundled with Node)
+### Prerequisites
 
-Install and run (local dev)
-```bash
-# 1) Install deps
-npm install
+- Node.js 20 LTS (minimum 18.18)
+- npm (ships with Node)
 
-# 2) Generate DB and seed example data
-npx prisma migrate dev
-npm run prisma:seed
+### Local Setup
 
-# 3) Start the dev server
-npm run dev
+1. **Install dependencies**
 
-# Open http://localhost:3000
-```
+   ```bash
+   npm install
+   ```
 
-Default demo data
-- A demo user is created during seeding: `demo@fcc.app`
-- Sample clients, projects, invoices, and time entries are included so the dashboard renders immediately.
+2. **Configure environment**
 
-Common Scripts
---------------
-- `npm run dev` — start Next.js dev server (Turbopack)
+   ```bash
+   cp .env.example .env # if provided
+   ```
+
+   Update `DATABASE_URL` (SQLite by default) and any other secrets.
+
+3. **Apply migrations & seed sample data**
+
+   ```bash
+   npx prisma migrate dev
+   npm run prisma:seed
+   ```
+
+4. **Start the dev server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Visit <http://localhost:3000>.
+
+The seed script creates a demo workspace with mock clients, projects, invoices, and time entries so that charts render immediately.
+
+### Useful Scripts
+
+- `npm run dev` — Next.js dev server (Turbopack)
 - `npm run build` — production build
-- `npm start` — start the built app
-- `npm run lint` — run ESLint
-- `npm run prisma:seed` — seed demo data
-- `npm run db:seed` — Prisma seed via `prisma db seed`
-- `npm run db:reset` — reset the local SQLite DB and reseed
+- `npm start` — run the compiled app
+- `npm run lint` — ESLint
+- `npm run prisma:seed` — seed data
+- `npm run db:seed` — alternative Prisma seeding entrypoint
+- `npm run db:reset` — wipe & reseed the local database
 
-Project Structure
------------------
-- `app/` — routes, pages, and API endpoints (App Router)
-  - `app/dashboard/` — dashboard UI and charts
-  - `app/api/` — REST‑style API routes (clients, projects, time, invoices)
-- `components/` — shared React components (e.g., nav tabs, to‑do board)
-- `lib/` — Prisma client and helpers
-- `prisma/` — Prisma schema, migrations, and seed
+## Project Structure
+
+- `app/` — routes, layouts, and API endpoints
+  - `app/(auth)` — marketing, login, signup, password reset
+  - `app/(app)` — authenticated dashboard, clients, projects, invoices, time
+  - `app/api` — REST endpoints for data operations
+- `components/` — shared UI primitives (nav tabs, boards, cards)
+- `lib/` — Prisma client, auth helpers, utility modules
+- `prisma/` — schema, migrations, and seed scripts
 - `public/` — static assets
 
-Troubleshooting
----------------
-- Port already in use (3000): close the running dev server or `pkill -f "next dev"`
-- Prisma client issues: `npx prisma generate`
-- Reset DB: `npm run db:reset`
+## Troubleshooting
 
-Contributing
-------------
-1) Create a feature branch: `git checkout -b feat/your-change`
-2) Run lint and dev locally: `npm run lint && npm run dev`
-3) Commit and push: `git commit -m "feat: describe change"` then `git push -u origin feat/your-change`
-4) Open a Pull Request on GitHub
+- **Port 3000 in use**: stop the existing dev server or `pkill -f "next dev"`.
+- **Prisma client mismatch**: run `npx prisma generate`.
+- **Reset data**: `npm run db:reset` (drops the SQLite file and reseeds).
 
-License
--------
-Private project. Do not distribute without permission.
+## Contributing
+
+1. Create a branch — `git checkout -b feat/awesome-improvement`
+2. Develop & lint — `npm run dev` and `npm run lint`
+3. Commit & push — `git commit -m "feat: add awesome improvement"` then `git push -u origin feat/awesome-improvement`
+4. Open a Pull Request
+
+## License
+
+This codebase is provided for public reference. Adapt or redistribute according to your organization’s policies.
