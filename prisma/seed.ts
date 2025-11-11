@@ -1,8 +1,10 @@
 // prisma/seed.ts
 import { PrismaClient } from "@prisma/client";
+import { Argon2id } from "oslo/password";
 const prisma = new PrismaClient();
 
 async function main() {
+  const passwordHash = await new Argon2id().hash("Password123!");
   const user = await prisma.user.upsert({
     where: { email: "demo@fcc.app" },
     update: {},
@@ -12,7 +14,14 @@ async function main() {
       companyName: "Freelancer Co.",
       currency: "CAD",
       taxRate: 13.0,
+      passwordHash,
     },
+  });
+
+  await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: { userId: user.id },
   });
 
   const acme = await prisma.client.create({
