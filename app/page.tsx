@@ -72,12 +72,6 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
               <Link
-                href="/signup"
-                className="rounded-full bg-white px-6 py-3 text-base font-semibold text-slate-900 transition hover:translate-y-0.5"
-              >
-                Start free workspace
-              </Link>
-              <Link
                 href="/dashboard"
                 className="rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10"
               >
@@ -149,7 +143,7 @@ export default function LandingPage() {
               className={`rounded-[28px] border border-white/10 bg-gradient-to-br ${feature.accent} p-6`}
             >
               <p className="text-sm uppercase tracking-[0.3em] text-white/60">
-                Module {String(idx + 1).padStart(2, "0")}
+                Module {idx + 1}
               </p>
               <h3 className="mt-3 text-2xl font-semibold">{feature.title}</h3>
               <p className="mt-3 text-base text-white/70">{feature.body}</p>
@@ -174,8 +168,8 @@ export default function LandingPage() {
             <div className="space-y-4">
               {workflow.map((step, idx) => (
                 <div key={step.label} className="flex gap-4">
-                  <div className="rounded-full border border-white/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]">
-                    {String(idx + 1).padStart(2, "0")}
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 text-sm font-semibold">
+                    {idx + 1}
                   </div>
                   <div>
                     <p className="text-base font-semibold">{step.label}</p>
@@ -244,12 +238,6 @@ export default function LandingPage() {
             stay in flow.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/signup"
-              className="rounded-full bg-white px-6 py-3 text-base font-semibold text-slate-900 transition hover:translate-y-0.5"
-            >
-              Create workspace
-            </Link>
             <Link
               href="/login"
               className="rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10"
