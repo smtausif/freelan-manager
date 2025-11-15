@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import NetworkBackground from "@/components/NetworkBackground";
 
 const heroStats = [
   { label: "Projects automated", value: "3,742" },
@@ -44,83 +45,96 @@ const workflow = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#01010A] text-white">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(93,63,211,0.35),_transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,_rgba(20,184,166,0.25),_transparent_55%)] blur-3xl" />
-      </div>
+    <div className="relative min-h-screen text-white overflow-hidden bg-transparent">
+      {/* Animated network background */}
+      <NetworkBackground />
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-32 px-6 pb-32 pt-20 lg:pt-28">
-        <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/5 p-10 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+      {/* NAVBAR */}
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-transparent backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-400 text-xs font-bold text-slate-950">
+              TW
+            </div>
+            <span className="text-sm font-semibold tracking-[0.18em] uppercase text-white/80">
+              TRACKwo
+            </span>
+          </Link>
+
+          <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
+            <Link href="#features" className="hover:text-white">
+              Features
+            </Link>
+            <Link href="#workflow" className="hover:text-white">
+              Workflow
+            </Link>
+            <Link href="#pricing" className="hover:text-white">
+              Pricing
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="hidden text-sm font-medium text-white/80 hover:text-white sm:inline-block"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_10px_35px_rgba(34,197,94,0.45)] ring-1 ring-emerald-300/40 transition hover:translate-y-0.5 hover:brightness-110"
+            >
+              Get started
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl flex flex-col gap-32 px-6 pb-24 pt-14 lg:pt-20">
+
+        {/* HERO */}
+        <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black/25 backdrop-blur-xl p-10 shadow-[0_25px_60px_rgba(0,0,0,0.4)]">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             className="max-w-3xl space-y-6"
           >
-            <p className="text-sm uppercase tracking-[0.3em] text-white/70">
+            <p className="text-sm uppercase tracking-[0.3em] text-white/60">
               Freelancer Command Center
             </p>
-            <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[56px]">
-              Orchestrate every client, every invoice, every handoff—
+            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl lg:text-[56px]">
+              Orchestrate every client, every invoice, every handoff,
               without losing the thread.
             </h1>
             <p className="text-lg text-white/70">
-              TRACKwo is your backstage staff: it keeps schedules honest, nudges
-              clients, packages deliverables, and lets you finish the day with
-              zero loose ends.
+              TRACKwo is your backstage staff. It keeps schedules honest,
+              nudges clients, packages deliverables, and lets you finish the
+              day with zero loose ends.
             </p>
+
             <div className="flex flex-wrap gap-4 pt-4">
               <Link
                 href="/signup"
-                className="rounded-full bg-white px-6 py-3 text-base font-semibold text-slate-900 transition hover:translate-y-0.5"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-6 py-2.5 text-base font-semibold text-slate-950 shadow-[0_10px_30px_rgba(34,197,94,0.45)] ring-1 ring-emerald-300/40 transition hover:translate-y-0.5 hover:brightness-110"
               >
                 Start free workspace
               </Link>
               <Link
                 href="/dashboard"
-                className="rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10"
+                className="inline-flex items-center justify-center rounded-full border border-white/25 bg-black/20 backdrop-blur-xl px-6 py-2.5 text-base font-semibold text-white/90 transition hover:bg-white/10"
               >
                 Launch dashboard
               </Link>
             </div>
           </motion.div>
-
-          <div className="pointer-events-none absolute -right-16 top-12 hidden lg:block">
-            <motion.div
-              initial={{ opacity: 0, rotate: -10 }}
-              animate={{ opacity: 1, rotate: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              className="relative h-80 w-80 rounded-[32px] bg-gradient-to-br from-indigo-400/60 via-sky-400/60 to-emerald-400/60 p-1"
-            >
-              <div className="flex h-full w-full flex-col justify-between rounded-[28px] bg-slate-950/95 p-6">
-                <div className="space-y-1">
-                  <p className="text-sm text-white/60">Live workload</p>
-                  <h3 className="text-3xl font-semibold">12 active briefs</h3>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-emerald-300">On-time handoffs</p>
-                  <h3 className="text-4xl font-semibold text-emerald-200">93%</h3>
-                </div>
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.4em] text-white/60">
-                    Next
-                  </p>
-                  <p className="text-lg font-semibold text-white">
-                    Invoice review · 3:00p
-                  </p>
-                </div>
-              </div>
-              <motion.div
-                className="absolute -bottom-6 -right-10 h-24 w-24 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 blur-md"
-                animate={{ y: [0, -6, 0] }}
-                transition={{ repeat: Infinity, duration: 4 }}
-              />
-            </motion.div>
-          </div>
         </section>
 
-        <section className="grid gap-6 rounded-[28px] border border-white/10 bg-white/5 p-6 sm:grid-cols-2 lg:grid-cols-3">
+        {/* STATS */}
+        <section
+          id="features"
+          className="grid gap-6 rounded-[28px] border border-white/10 bg-black/20 backdrop-blur-xl p-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
           {heroStats.map((stat) => (
             <motion.div
               key={stat.label}
@@ -138,6 +152,7 @@ export default function LandingPage() {
           ))}
         </section>
 
+        {/* FEATURE TILES */}
         <section className="grid gap-6 lg:grid-cols-3">
           {featureTiles.map((feature, idx) => (
             <motion.div
@@ -146,7 +161,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: idx * 0.1 }}
-              className={`rounded-[28px] border border-white/10 bg-gradient-to-br ${feature.accent} p-6`}
+              className={`rounded-[28px] border border-white/10 bg-black/20 backdrop-blur-xl p-6 ${feature.accent}`}
             >
               <p className="text-sm uppercase tracking-[0.3em] text-white/60">
                 Module {String(idx + 1).padStart(2, "0")}
@@ -157,24 +172,28 @@ export default function LandingPage() {
           ))}
         </section>
 
-        <section className="grid items-center gap-10 rounded-[32px] border border-white/10 bg-white/5 p-10 lg:grid-cols-2">
+        {/* WORKFLOW */}
+        <section
+          id="workflow"
+          className="grid items-center gap-10 rounded-[32px] border border-white/10 bg-black/25 backdrop-blur-xl p-10 lg:grid-cols-2"
+        >
           <div className="space-y-6">
             <p className="text-sm uppercase tracking-[0.3em] text-white/60">
               Live canvas
             </p>
             <h2 className="text-3xl font-semibold leading-tight lg:text-4xl">
-              See your runway, cash, and commitments on a single adaptive
-              canvas.
+              See your runway, cash, and commitments on a single
+              adaptive canvas.
             </h2>
             <p className="text-lg text-white/70">
-              We layer financials, task signals, and communication tone so you
-              can anticipate the week instead of react to it. Every module is
-              tuned to freelancers running multiple high-touch accounts.
+              We layer financials, task signals, and communication
+              tone so you can anticipate the week instead of react to it.
             </p>
+
             <div className="space-y-4">
               {workflow.map((step, idx) => (
                 <div key={step.label} className="flex gap-4">
-                  <div className="rounded-full border border-white/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]">
+                  <div className="rounded-full border border-white/30 bg-black/20 backdrop-blur-xl px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]">
                     {String(idx + 1).padStart(2, "0")}
                   </div>
                   <div>
@@ -185,80 +204,93 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <div className="relative">
-            <motion.div
-              className="rounded-[32px] border border-white/10 bg-slate-900/70 p-6 shadow-[0_40px_90px_rgba(0,0,0,0.65)] backdrop-blur"
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                    Revenue Pulse
-                  </p>
-                  <p className="text-2xl font-semibold">$47,930</p>
-                  <p className="text-xs text-emerald-300">+12% vs. last month</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                    Deep work
-                  </p>
-                  <p className="text-2xl font-semibold">26 hrs</p>
-                  <p className="text-xs text-white/60">Booked this week</p>
-                </div>
-                <div className="col-span-2 rounded-2xl border border-white/10 bg-gradient-to-r from-sky-500/20 to-emerald-500/10 p-5">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-                    Upcoming handoffs
-                  </p>
-                  <div className="mt-3 space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span>Beta Studio – Brand drop</span>
-                      <span className="text-white/70">Thu · 4:00p</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Arcade Labs – Audit</span>
-                      <span className="text-white/70">Fri · 9:30a</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-            <motion.div
-              className="absolute -left-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-rose-500 to-purple-500 blur-2xl"
-              animate={{ scale: [1, 1.08, 1] }}
-              transition={{ repeat: Infinity, duration: 6 }}
-            />
-          </div>
         </section>
 
-        <section className="rounded-[32px] border border-white/10 bg-white/5 p-10 text-center shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
-          <p className="text-sm uppercase tracking-[0.3em] text-white/60">Ready?</p>
+        {/* CTA */}
+        <section
+          id="pricing"
+          className="rounded-[32px] border border-white/10 bg-black/20 backdrop-blur-xl p-10 text-center shadow-[0_25px_60px_rgba(0,0,0,0.4)]"
+        >
+          <p className="text-sm uppercase tracking-[0.3em] text-white/60">
+            Ready?
+          </p>
           <h2 className="mt-4 text-3xl font-semibold lg:text-4xl">
             Drop the spreadsheets. Invite your clients. End the chaos.
           </h2>
           <p className="mx-auto mt-3 max-w-3xl text-lg text-white/70">
-            Set up TRACKwo in less than five minutes. Plug in your projects,
-            connect Stripe, and let automations handle the busywork while you
-            stay in flow.
+            Set up TRACKwo in less than five minutes. Connect Stripe,
+            plug in your clients, and let automation do the boring work
           </p>
+
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
               href="/signup"
-              className="rounded-full bg-white px-6 py-3 text-base font-semibold text-slate-900 transition hover:translate-y-0.5"
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-6 py-2.5 text-base font-semibold text-slate-950 shadow-[0_10px_30px_rgba(34,197,94,0.45)] ring-1 ring-emerald-300/40 transition hover:translate-y-0.5 hover:brightness-110"
             >
               Create workspace
             </Link>
             <Link
               href="/login"
-              className="rounded-full border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10"
+              className="inline-flex items-center justify-center rounded-full border border-white/30 bg-black/20 backdrop-blur-xl px-6 py-2.5 text-base font-semibold text-white/90 transition hover:bg-white/10"
             >
               I already have an account
             </Link>
           </div>
         </section>
       </main>
+
+      {/* FOOTER */}
+      <footer className="border-t border-white/10 bg-black/20 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-emerald-400 to-cyan-400 text-[10px] font-bold text-slate-950">
+                TW
+              </div>
+              <span className="text-sm font-semibold tracking-[0.18em] uppercase text-white/70">
+                TRACKwo
+              </span>
+            </div>
+            <p className="max-w-xs text-xs text-white/50">
+              The calm control center for freelancers who treat
+              their work like a real business.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-6 text-xs text-white/60">
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+                Product
+              </span>
+              <Link href="#features" className="hover:text-white">
+                Features
+              </Link>
+              <Link href="#workflow" className="hover:text-white">
+                Workflow
+              </Link>
+              <Link href="#pricing" className="hover:text-white">
+                Pricing
+              </Link>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+                Company
+              </span>
+              <Link href="/about" className="hover:text-white">
+                About
+              </Link>
+              <Link href="/contact" className="hover:text-white">
+                Contact
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-white/50">
+            © {new Date().getFullYear()} TRACKwo. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
