@@ -8,11 +8,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/**
- * =========================
- * Core Models
- * =========================
- */
+// =========================
+// Core Models
+// =========================
 
 model User {
   id          String  @id @default(cuid())
@@ -148,11 +146,10 @@ model UserSettings {
   updatedAt DateTime @updatedAt
 }
 
-/**
- * =========================
- * Tasks (To-Do)
- * =========================
- */
+
+// =========================
+// Tasks (To-Do)
+// =========================
 
 enum TaskStatus {
   TODO
@@ -203,11 +200,11 @@ model PasswordResetToken {
   @@index([userId])
 }
 
-/**
- * =========================
- * Enums
- * =========================
- */
+
+// =========================
+// Enums
+// =========================
+
 
 enum BillingType {
   HOURLY
@@ -233,11 +230,11 @@ enum InvoiceStatus {
   PARTIAL
 }
 
-/**
- * =========================
- * Invoicing
- * =========================
- */
+
+// =========================
+// Invoicing
+// =========================
+
 
 model Invoice {
   id       String @id @default(cuid())
