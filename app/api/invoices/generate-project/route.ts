@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
           settings: {
             upsert: {
               update: { nextNumber: (settings?.nextNumber ?? 0) + 1 },
-              create: { userId: user.id, nextNumber: (settings?.nextNumber ?? 0) + 1 },
+              create: { nextNumber: (settings?.nextNumber ?? 0) + 1 },
             },
           },
         },
